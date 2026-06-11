@@ -1,0 +1,1 @@
+IPFS Meshkit is the SDK for the Mobile specific frameworks like Flutter, Ionic, React Native. This oprates as a 1 layer above the IPFS and can be used with the IPFS local nodes and service providers as well.
