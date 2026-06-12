@@ -1,17 +1,21 @@
 {
   "name": "ipfs-meshkit",
   "version": "1.0.0",
+  "private": true,
   "description": "IPFS Meshkit is a SDK for building IPFS applications.",
-  "main": "dist/index.js",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "build": "tsc"
+    "build": "tsc --build",
+    "clean": "npm run clean --workspaces --if-present"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/seetadev/IPFS-meshkit.git"
   },
-  "keywords": ["ipfs", "meshkit", "stack", "ionic" ],
+  "keywords": ["ipfs", "meshkit", "stack", "ionic"],
   "author": "Manu Sheel Gupta",
   "contributors": [
     {
@@ -23,8 +27,9 @@
   "bugs": {
     "url": "https://github.com/seetadev/IPFS-meshkit/issues"
   },
+  "homepage": "https://github.com/seetadev/IPFS-meshkit#readme",
   "devDependencies": {
     "@types/node": "^25.9.3",
     "typescript": "^6.0.3"
-  } 
-} 
+  }
+}
