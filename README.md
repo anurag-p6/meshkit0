@@ -17,6 +17,7 @@ Meshkit handles `upload`, `retrieve`, and `pin` against the node's RPC API.
 |---------|-------------|
 | [`@ipfs-meshkit/core`](./packages/core) | TypeScript client for a Kubo RPC endpoint |
 | [`@ipfs-meshkit/capacitor`](./packages/capacitor) | Capacitor adapter for Ionic / hybrid apps |
+| [`@ipfs-meshkit/react-native`](./packages/react-native) | React Native adapter (re-exports core + polyfill entry) |
 
 ## Prerequisites
 
@@ -100,3 +101,28 @@ import { createMeshkitClient } from '@ipfs-meshkit/core';
 const client = createMeshkitClient({ apiUrl: 'http://127.0.0.1:5001' });
 const cid = await client.upload(await readFile('./invoice.pdf'));
 ```
+
+### React Native
+
+Install the adapter and polyfills in your app:
+
+```bash
+npm install @ipfs-meshkit/react-native react-native-get-random-values \
+  react-native-url-polyfill react-native-fetch-api web-streams-polyfill fast-text-encoding
+```
+
+Load polyfills once at app entry (before any Meshkit import):
+
+```typescript
+import '@ipfs-meshkit/react-native/polyfills';
+import { Meshkit } from '@ipfs-meshkit/react-native';
+
+const mk = await Meshkit.init({
+  // Use your machine's LAN IP or a VPS — not 127.0.0.1 on a physical device.
+  nodes: ['http://192.168.1.42:5001'],
+});
+
+const cid = await mk.upload(new Uint8Array([1, 2, 3]));
+```
+
+On Android, allow cleartext HTTP for local dev (`android:usesCleartextTraffic="true"`). On iOS, enable local networking in `Info.plist` if using `http://` on LAN.
