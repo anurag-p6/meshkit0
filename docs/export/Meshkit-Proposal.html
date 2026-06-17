@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Meshkit Project Proposal</title>
+  <style>
+    @page { margin: 2cm; }
+    body { font-family: Georgia, 'Times New Roman', serif; max-width: 800px; margin: 0 auto; padding: 2rem; line-height: 1.6; color: #1a1a1a; }
+    h1 { font-size: 1.75rem; border-bottom: 2px solid #333; padding-bottom: 0.5rem; }
+    h2 { font-size: 1.35rem; margin-top: 2rem; color: #222; }
+    h3 { font-size: 1.1rem; margin-top: 1.5rem; }
+    h4 { font-size: 1rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem 0.75rem; text-align: left; }
+    th { background: #f5f5f5; }
+    code { background: #f4f4f4; padding: 0.15rem 0.35rem; font-size: 0.88em; }
+    pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; font-size: 0.85rem; }
+    blockquote { border-left: 4px solid #666; margin: 1rem 0; padding: 0.5rem 1rem; background: #fafafa; }
+    img { max-width: 100%; height: auto; }
+    hr { border: none; border-top: 1px solid #ddd; margin: 2rem 0; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+<h1>Meshkit: Project Proposal: IPFS Storage SDK with PPT Token-Gated Access</h1>
+<p><strong>Project:</strong> Meshkit<br><strong>Proposal:</strong> A TypeScript SDK for decentralized IPFS storage (<code>upload</code>, <code>retrieve</code>, <code>pin</code>) on mobile and web: with <strong>Park Pro Token (PPT)</strong> hold-to-use gating built into the core product design<br><strong>Document type:</strong> Project proposal, value-proposition design, and technical specification<br><strong>Version:</strong> 0.6 (draft)<br><strong>Status:</strong> Living document: values marked <code>[TBD]</code> require confirmation before implementation</p>
+<hr>
+<h2>Table of Contents</h2>
+<ol>
+<li><a href="#1-introduction">Introduction</a></li>
+<li><a href="#2-meshkit-value-proposition">Meshkit Value Proposition</a></li>
+<li><a href="#3-what-meshkit-is">What Meshkit Is</a></li>
+<li><a href="#4-problem-statement">Problem Statement</a></li>
+<li><a href="#5-goals-constraints-and-non-goals">Goals, Constraints, and Non-Goals</a></li>
+<li><a href="#6-token-gated-access-model">Token-Gated Access Model</a></li>
+<li><a href="#7-park-pro-token-ppt-specification">Park Pro Token (PPT) Specification</a></li>
+<li><a href="#8-system-architecture">System Architecture</a></li>
+<li><a href="#9-detailed-component-design">Detailed Component Design</a></li>
+<li><a href="#10-operation-lifecycles">Operation Lifecycles</a></li>
+<li><a href="#11-api-specification">API Specification</a></li>
+<li><a href="#12-error-handling-and-user-feedback">Error Handling and User Feedback</a></li>
+<li><a href="#13-platform-integration">Platform Integration</a></li>
+<li><a href="#14-security-model-and-threat-analysis">Security Model and Threat Analysis</a></li>
+<li><a href="#15-testing-strategy">Testing Strategy</a></li>
+<li><a href="#16-documentation-skill-specification">Documentation Skill Specification</a></li>
+<li><a href="#17-implementation-roadmap">Implementation Roadmap</a></li>
+<li><a href="#18-open-decisions">Open Decisions</a></li>
+<li><a href="#19-references">References</a></li>
+</ol>
+<hr>
+<h2>1. Introduction</h2>
+<h3>1.1 Purpose of This Document</h3>
+<p>This document is the <strong>Meshkit project proposal:</strong> the full case for what Meshkit is, why it should exist, and how it is built. Meshkit is not a side feature on top of something else, and PPT is not a standalone proposal. <strong>Meshkit is the product; PPT-gated IPFS access is how that product works.</strong></p>
+<p>The proposal covers:</p>
+<ul>
+<li><strong>What Meshkit is:</strong> an IPFS storage SDK for React Native, Capacitor, and Node.js (§3)</li>
+<li><strong>Why Meshkit matters:</strong> decentralized <code>upload</code>, <code>retrieve</code>, and <code>pin</code> against Kubo, with multi-node failover and mobile support (§2, §4)</li>
+<li><strong>How access works:</strong> holders of Park Pro Token (PPT) on Arbitrum use Meshkit APIs; non-holders are routed to Uniswap V3 (§2, §6-7)</li>
+<li><strong>How it is implemented:</strong> architecture, APIs, errors, platforms, security (§8-14)</li>
+<li><strong>How it ships:</strong> roadmap, open decisions, documentation skill (§16-18)</li>
+</ul>
+<h3>1.2 What This Proposal Delivers</h3>
+<p>Meshkit is proposed as a <strong>complete SDK product</strong> with three integrated pillars:</p>
+<table>
+<thead>
+<tr>
+<th>Pillar</th>
+<th>What Meshkit delivers</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>IPFS storage SDK</strong></td>
+<td><code>Meshkit.init</code>, <code>upload</code>, <code>retrieve</code>, <code>pin</code> against Kubo RPC; multi-node failover</td>
+</tr>
+<tr>
+<td><strong>PPT token-gated access</strong></td>
+<td>Hold-to-use gate via ERC-20 <code>balanceOf</code> on Arbitrum before every storage operation</td>
+</tr>
+<tr>
+<td><strong>Mobile &amp; hybrid support</strong></td>
+<td><code>@ipfs-meshkit/react-native</code>, <code>@ipfs-meshkit/capacitor</code>, polyfills for real devices</td>
+</tr>
+</tbody></table>
+<p>PPT is the <strong>access credential</strong>. Meshkit is the <strong>product that consumes and enforces it</strong> while delivering IPFS storage to apps.</p>
+<h3>1.3 Scope</h3>
+<p><strong>In scope for Meshkit (this proposal):</strong></p>
+<ul>
+<li>Core SDK: <code>Meshkit</code> facade, Kubo client, health checks, node failover (<code>@ipfs-meshkit/core</code>)</li>
+<li>PPT gate: wallet balance check, <code>TokenGateError</code>, Uniswap onboarding links (PPT/ARB, PPT/USDC)</li>
+<li>Platform packages: React Native polyfills, Capacitor adapter</li>
+<li>Technical documentation and a Documentation skill blueprint</li>
+</ul>
+<p><strong>Out of scope for v1</strong> (unless promoted in §18):</p>
+<ul>
+<li>On-chain micropayments per upload/retrieve</li>
+<li>Kubo-native authorization plugins</li>
+<li>Multi-chain PPT deployment</li>
+<li>Flutter adapter (listed as future work)</li>
+</ul>
+<h3>1.4 Reference Diagram</h3>
+<p>The Meshkit user flow: storage through the SDK, access controlled by PPT:</p>
+<p><img src="./docs/assets/token-gate-flow.png" alt="Token-gated access flow"></p>
+<p><strong>Meshkit</strong> is the entry point. Every IPFS action passes through a <strong>PPT balance check</strong>. Sufficient balance → <strong>IPFS</strong> (<code>upload</code>, <code>retrieve</code>, <code>pin</code>). Insufficient balance → <strong>acquire PPT on Uniswap V3</strong>.</p>
+<hr>
+<h2>2. Meshkit Value Proposition</h2>
+<p>This section states <strong>why Meshkit should be built</strong> and how PPT fits into the product, not as an afterthought, but as the designed access model for IPFS storage.</p>
+<h3>2.1 Value Proposition (One Sentence)</h3>
+<p><strong>Meshkit is the SDK for PPT-gated IPFS storage: hold PPT, use Meshkit, store and access data on IPFS.</strong></p>
+<p>Meshkit gives developers one integration for decentralized file storage on mobile and web. Park Pro Token (PPT) is the on-chain credential that unlocks it: <code>upload</code>, <code>retrieve</code>, and <code>pin</code> against Kubo nodes for wallets that hold enough PPT.</p>
+<h3>2.2 The Problem Meshkit Solves</h3>
+<p>Developers building invoice apps, document backup, attachments, and other products need <strong>decentralized storage</strong> without embedding IPFS inside the app. Today they face two gaps Meshkit is proposed to close:</p>
+<table>
+<thead>
+<tr>
+<th>Gap</th>
+<th>Without Meshkit</th>
+<th>With Meshkit</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>IPFS integration</strong></td>
+<td>Raw Kubo RPC, no failover, poor mobile support</td>
+<td>Typed SDK: <code>upload</code> / <code>retrieve</code> / <code>pin</code>, multi-node failover, RN/Capacitor packages</td>
+</tr>
+<tr>
+<td><strong>Access control</strong></td>
+<td>Open Kubo URLs or custom auth per app</td>
+<td>PPT hold-to-use gate built into every storage call</td>
+</tr>
+<tr>
+<td><strong>User onboarding</strong></td>
+<td>No standard path when access is denied</td>
+<td><code>TokenGateError</code> + Uniswap V3 (PPT/ARB, PPT/USDC)</td>
+</tr>
+</tbody></table>
+<p><strong>Meshkit utility definition:</strong><br><em>Meshkit is how apps and users perform IPFS storage operations: upload, retrieve, and pin on Kubo nodes, with PPT on Arbitrum as the required access credential.</em></p>
+<p>PPT does not replace Meshkit. <strong>Meshkit is the product; PPT is what grants access to it.</strong></p>
+<h3>2.3 Why PPT Powers Meshkit Access</h3>
+<p>Meshkit is designed around PPT as the access layer. Park Pro Token is an <strong>ERC-20 on Arbitrum</strong>; Meshkit reads <code>balanceOf(wallet)</code> before each storage operation.</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Role in Meshkit</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>On-chain verifiability</strong></td>
+<td>Any Meshkit client can check eligibility via Arbitrum RPC</td>
+</tr>
+<tr>
+<td><strong>Hold-to-use</strong></td>
+<td>Users keep PPT; no per-upload gas in v1</td>
+</tr>
+<tr>
+<td><strong>DEX liquidity</strong></td>
+<td>Uniswap V3 (PPT/ARB, PPT/USDC) is the onboarding path when gate fails</td>
+</tr>
+<tr>
+<td><strong>ERC-20 standard</strong></td>
+<td>Stable <code>balanceOf</code> interface across wallets and platforms</td>
+</tr>
+</tbody></table>
+<h3>2.4 Meshkit Product Architecture (Value View)</h3>
+<pre><code class="language-mermaid">flowchart LR
+  PPT[PPT on Arbitrum&lt;br/&gt;access credential]
+  MK[Meshkit&lt;br/&gt;upload · retrieve · pin]
+  IPFS[IPFS / Kubo&lt;br/&gt;decentralized storage]
+
+  PPT --&gt;|hold ≥ threshold| MK
+  MK --&gt; IPFS
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>PPT</strong></td>
+<td>On-chain access credential; liquid on Uniswap</td>
+</tr>
+<tr>
+<td><strong>Meshkit</strong></td>
+<td>The proposed SDK: checks PPT, executes IPFS operations, mobile support</td>
+</tr>
+<tr>
+<td><strong>IPFS (Kubo)</strong></td>
+<td>Where data lives: content-addressed, portable, decentralized</td>
+</tr>
+</tbody></table>
+<h3>2.5 Adoption Flywheel</h3>
+<pre><code class="language-mermaid">flowchart TD
+  A[User wants IPFS storage in a Meshkit app] --&gt; B{Holds PPT?}
+  B --&gt;|No| C[Buy PPT on Uniswap V3]
+  C --&gt; D[PPT demand + liquidity]
+  D --&gt; B
+  B --&gt;|Yes| E[Meshkit upload / retrieve / pin]
+  E --&gt; F[User retains value in decentralized data]
+  F --&gt; G[More apps adopt Meshkit]
+  G --&gt; A
+</code></pre>
+<ol>
+<li><strong>Demand:</strong> Apps ship with Meshkit for IPFS storage; access requires PPT.</li>
+<li><strong>Acquisition:</strong> Users without PPT buy on Uniswap (PPT/ARB or PPT/USDC).</li>
+<li><strong>Usage:</strong> Holders use Meshkit storage APIs; data on IPFS reinforces product value.</li>
+<li><strong>Adoption:</strong> More apps → more users → stronger Meshkit and PPT ecosystem.</li>
+</ol>
+<p>The reference diagram (<code>docs/assets/token-gate-flow.png</code>) is the user-facing expression of this loop: <strong>Meshkit</strong> at entry, <strong>PPT check</strong>, then <strong>IPFS</strong> or <strong>get PPT</strong>.</p>
+<h3>2.6 What Meshkit Storage Looks Like in Practice</h3>
+<p>For end users and developers, &quot;token-gated IPFS storage&quot; is not abstract. It maps directly to Meshkit methods:</p>
+<table>
+<thead>
+<tr>
+<th>User intent</th>
+<th>Meshkit API</th>
+<th>What happens on IPFS</th>
+<th>PPT required?</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Save a file</td>
+<td><code>mk.upload(bytes)</code></td>
+<td>Content added to Kubo; CID returned</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Open a file by CID</td>
+<td><code>mk.retrieve(cid)</code></td>
+<td>Bytes fetched from Kubo</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Keep a file pinned</td>
+<td><code>mk.pin(cid)</code></td>
+<td>CID pinned on node (not GC&#39;d)</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Check node is up</td>
+<td><code>Meshkit.init({ nodes })</code></td>
+<td>Health check only</td>
+<td>No (diagnostics)</td>
+</tr>
+</tbody></table>
+<p><strong>Example (invoice app):</strong> A freelancer app uses Meshkit to upload PDF invoices to IPFS. The freelancer connects a wallet. If they hold PPT, <code>upload</code> succeeds and returns a CID they can share. If not, the app shows Meshkit&#39;s <code>TokenGateError</code> and a link to buy PPT, then they retry.</p>
+<h3>2.7 Stakeholder Value</h3>
+<h4>End users (PPT holders)</h4>
+<ul>
+<li><strong>Decentralized storage</strong> without running their own Kubo node in the app</li>
+<li><strong>Portable entitlement:</strong> same wallet works across any Meshkit app on Arbitrum</li>
+<li><strong>Transparent qualification:</strong> balance and Uniswap links in one error type</li>
+<li><strong>Retain tokens:</strong> hold-to-use; no per-file gas</li>
+</ul>
+<h4>App developers</h4>
+<ul>
+<li><strong>One integration:</strong> <code>@ipfs-meshkit/core</code> + <code>tokenGate</code> in <code>Meshkit.init</code></li>
+<li><strong>Unchanged call sites:</strong> still <code>upload</code> / <code>retrieve</code> / <code>pin</code> after init</li>
+<li><strong>Aligned with Park Pro:</strong> apps participate in PPT utility without building token logic from scratch</li>
+<li><strong>Mobile-ready:</strong> React Native and Capacitor packages share the same gate</li>
+</ul>
+<h4>Park Pro / PPT ecosystem</h4>
+<ul>
+<li><strong>Defined utility:</strong> PPT required for a real product action (IPFS storage)</li>
+<li><strong>DEX-aligned onboarding:</strong> Uniswap V3 pools are the official off-ramp into eligibility</li>
+<li><strong>Measurable adoption:</strong> Meshkit API usage shows PPT-gated storage in production (see §2.10)</li>
+<li><strong>Composability:</strong> PPT used for storage today; same token extensible to other gates later</li>
+</ul>
+<h4>Node operators</h4>
+<ul>
+<li><strong>Policy at the edge:</strong> client gate reduces casual abuse of shared Kubo URLs</li>
+<li><strong>Future path:</strong> server-side attestation can reinforce the same PPT rule (§14)</li>
+</ul>
+<h3>2.8 Product Design Principles</h3>
+<p>These principles define Meshkit as a product. Engineering details are in §6-11.</p>
+<table>
+<thead>
+<tr>
+<th>Principle</th>
+<th>Design choice</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Meshkit is the product</strong></td>
+<td>IPFS SDK + PPT gate + mobile packages ship as one proposal</td>
+</tr>
+<tr>
+<td><strong>PPT is the access layer</strong></td>
+<td>Hold-to-use on Arbitrum; gate runs before every storage operation</td>
+</tr>
+<tr>
+<td><strong>Fail closed</strong></td>
+<td>No PPT / wrong chain / RPC failure → no IPFS operation</td>
+</tr>
+<tr>
+<td><strong>Fail informed</strong></td>
+<td><code>TokenGateError</code> includes balance, minimum, Uniswap links</td>
+</tr>
+<tr>
+<td><strong>Developer opt-out</strong></td>
+<td><code>tokenGate.enabled: false</code> for local dev and tests</td>
+</tr>
+<tr>
+<td><strong>Ops before entitlement</strong></td>
+<td><code>init</code> stays ungated so connectivity can be debugged without tokens</td>
+</tr>
+<tr>
+<td><strong>API stability</strong></td>
+<td>Gate is configured at init; <code>Meshkit</code> method signatures unchanged</td>
+</tr>
+</tbody></table>
+<h3>2.9 Meshkit API Surface</h3>
+<p>The <strong>Meshkit public API is the product interface:</strong> IPFS storage operations with PPT gating configured at init:</p>
+<pre><code class="language-typescript">// Meshkit: connect to Kubo nodes + PPT access credential
+const mk = await Meshkit.init({
+  nodes: [&#39;https://ipfs.example.com:5001&#39;],
+  tokenGate: {
+    enabled: true,
+    contractAddress: &#39;0xTBD&#39;,      // PPT on Arbitrum
+    chainId: 42161,
+    walletAddress: userWallet,
+    minimumBalance: 10n ** 18n,    // [TBD] e.g. 1 PPT
+    rpcUrl: arbitrumRpc,
+    uniswap: { pptArb: &#39;…&#39;, pptUsdc: &#39;…&#39; },
+  },
+});
+
+// Meshkit storage: each call checks PPT, then IPFS:
+const cid = await mk.upload(documentBytes);
+const bytes = await mk.retrieve(cid);
+await mk.pin(cid);
+</code></pre>
+<p><strong>Contract between token and SDK:</strong></p>
+<table>
+<thead>
+<tr>
+<th>PPT side</th>
+<th>Meshkit side</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>User holds ≥ <code>minimumBalance</code> on Arbitrum</td>
+<td><code>assertEligible()</code> passes</td>
+</tr>
+<tr>
+<td>User below threshold</td>
+<td><code>TokenGateError</code> + Uniswap URLs</td>
+</tr>
+<tr>
+<td>Token liquid on Uniswap</td>
+<td>User can become eligible without off-chain signup</td>
+</tr>
+<tr>
+<td>ERC-20 <code>balanceOf</code></td>
+<td>Single source of truth for v1 gate</td>
+</tr>
+</tbody></table>
+<p>No separate &quot;PPT SDK&quot; is proposed. <strong>Meshkit is the product; PPT is checked inside it.</strong></p>
+<h3>2.10 Success Metrics</h3>
+<p>How to measure whether the <strong>Meshkit product</strong> is succeeding:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>What it indicates</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Apps shipping Meshkit</td>
+<td>Developer adoption of the SDK</td>
+</tr>
+<tr>
+<td><code>upload</code> / <code>retrieve</code> / <code>pin</code> success rate</td>
+<td>Users actively storing data via Meshkit</td>
+</tr>
+<tr>
+<td><code>TokenGateError</code> → retry success rate</td>
+<td>PPT onboarding path works inside Meshkit</td>
+</tr>
+<tr>
+<td>Unique wallets passing gate per week</td>
+<td>Active Meshkit users</td>
+</tr>
+<tr>
+<td>Meshkit app launches ↔ PPT DEX volume</td>
+<td>Product driving token demand</td>
+</tr>
+</tbody></table>
+<p><code>[TBD]</code>: instrumentation hooks (analytics events on gate pass/fail) may be added in a later phase.</p>
+<h3>2.11 Positioning and Messaging</h3>
+<p><strong>For developers:</strong><br><em>&quot;Meshkit is the IPFS storage SDK for mobile and web. Connect Kubo nodes, call upload/retrieve/pin; access is gated by Park Pro Token (PPT) with Uniswap onboarding built in.&quot;</em></p>
+<p><strong>For end users:</strong><br><em>&quot;Use Meshkit-powered apps to store and access files on IPFS. Hold PPT to get started; get it on Uniswap if you need it.&quot;</em></p>
+<p><strong>For the ecosystem:</strong><br><em>&quot;Meshkit is the product. PPT is the key. IPFS is the storage.&quot;</em></p>
+<h3>2.12 Document Map</h3>
+<table>
+<thead>
+<tr>
+<th>Section</th>
+<th>Role in the Meshkit proposal</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>§3</td>
+<td>What Meshkit is: SDK architecture and packages</td>
+</tr>
+<tr>
+<td>§4</td>
+<td>Problems Meshkit is built to solve</td>
+</tr>
+<tr>
+<td>§6-7</td>
+<td>PPT access model and token specification</td>
+</tr>
+<tr>
+<td>§8-11</td>
+<td>Technical design of the Meshkit SDK</td>
+</tr>
+<tr>
+<td>§14</td>
+<td>Security boundaries for the proposed product</td>
+</tr>
+<tr>
+<td>§16</td>
+<td>Documentation for shipping Meshkit</td>
+</tr>
+</tbody></table>
+<h3>2.13 Future Extensions</h3>
+<p>Hold-to-use is v1. Future Meshkit releases can extend the same product surface:</p>
+<table>
+<thead>
+<tr>
+<th>Extension</th>
+<th>What it adds to Meshkit</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Tiered thresholds</td>
+<td>More PPT → higher pin quota or upload policy</td>
+</tr>
+<tr>
+<td>Per-operation metering</td>
+<td>Optional micropayment or burn for premium pins</td>
+</tr>
+<tr>
+<td>Server attestation</td>
+<td>Kubo proxy verifies PPT before RPC</td>
+</tr>
+<tr>
+<td>Cross-app pinning marketplace</td>
+<td>PPT for prioritized pin on operator nodes</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>3. What Meshkit Is</h2>
+<p>Meshkit is proposed as a <strong>TypeScript SDK</strong> that connects apps to Kubo IPFS nodes and enforces PPT-gated access before storage operations. This section describes the product architecture.</p>
+<h3>3.1 Overview</h3>
+<p><strong>Meshkit</strong> targets mobile and hybrid frameworks (React Native, Capacitor/Ionic) and Node.js.</p>
+<p>It does <strong>not</strong> embed an IPFS node in the app. It speaks HTTP to a <strong>running Kubo (go-ipfs) daemon</strong> on the developer&#39;s PC, LAN, or VPS. Data lives on that node. The SDK is a typed client over Kubo&#39;s RPC API (<code>kubo-rpc-client</code>). The public facade is the <code>Meshkit</code> class in <code>@ipfs-meshkit/core</code>.</p>
+<p><strong>Proposed access model:</strong> before <code>upload</code>, <code>retrieve</code>, or <code>pin</code>, Meshkit checks PPT balance on Arbitrum. That gate is part of the product design, not an optional plugin.</p>
+<h3>3.2 Package Structure</h3>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>@ipfs-meshkit/core</code></td>
+<td><code>Meshkit</code> facade, <code>createMeshkitClient</code>, failover, health checks</td>
+</tr>
+<tr>
+<td><code>@ipfs-meshkit/react-native</code></td>
+<td>Re-exports core + <code>polyfills</code> entry for RN runtime gaps</td>
+</tr>
+<tr>
+<td><code>@ipfs-meshkit/capacitor</code></td>
+<td>Capacitor plugin scaffold + web fallback</td>
+</tr>
+</tbody></table>
+<h3>3.3 Current Initialization Flow</h3>
+<p><code>Meshkit.init(options)</code> accepts:</p>
+<ul>
+<li><code>nodes: string[]</code>: Kubo RPC URLs in <strong>priority order</strong> (primary first, others for failover)</li>
+<li><code>headers?: Record&lt;string, string&gt;</code>: optional HTTP headers (e.g. API auth on the node)</li>
+</ul>
+<p>On init, the SDK:</p>
+<ol>
+<li>Creates one <code>MeshkitClient</code> per URL via <code>createMeshkitClient</code></li>
+<li>Runs <code>healthCheck()</code> on each (calls <code>ipfs.id()</code>)</li>
+<li>Drops unreachable nodes</li>
+<li>Throws <code>MeshkitError</code> if <strong>zero</strong> nodes are healthy</li>
+<li>Returns a <code>Meshkit</code> instance with <code>activeNodes</code> listing survivors</li>
+</ol>
+<p>There is <strong>no wallet</strong>, <strong>no blockchain RPC</strong>, and <strong>no identity</strong> beyond whatever the Kubo endpoint enforces (often nothing on local dev).</p>
+<h3>3.4 Current Operation Semantics</h3>
+<p>Each public method on <code>Meshkit</code> uses <code>withFailover</code>: try nodes in order until one succeeds.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Kubo RPC</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>upload(data: Uint8Array)</code></td>
+<td><code>ipfs.add(data, { pin: false })</code></td>
+<td>Returns CID string; does not pin by default</td>
+</tr>
+<tr>
+<td><code>retrieve(cid: string)</code></td>
+<td><code>ipfs.cat(cid)</code></td>
+<td>Streams chunks into a single <code>Uint8Array</code></td>
+</tr>
+<tr>
+<td><code>pin(cid: string)</code></td>
+<td><code>ipfs.pin.add(cid)</code></td>
+<td>Pins CID on the node</td>
+</tr>
+<tr>
+<td><code>healthCheck()</code> (per client)</td>
+<td><code>ipfs.id()</code></td>
+<td>Used only at init</td>
+</tr>
+</tbody></table>
+<h3>3.5 Authorization Model (Proposed)</h3>
+<p>Meshkit proposes <strong>two layers</strong> of access:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Mechanism</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Network</strong></td>
+<td>App must reach Kubo RPC URL (optional HTTP headers)</td>
+</tr>
+<tr>
+<td><strong>PPT (product gate)</strong></td>
+<td>Wallet must hold ≥ minimum PPT on Arbitrum before storage ops</td>
+</tr>
+</tbody></table>
+<p>Without the PPT layer, any client with the Kubo URL can use storage: which is why PPT gating is core to the Meshkit proposal.</p>
+<h3>3.6 Deployment Patterns</h3>
+<ol>
+<li><strong>Local development:</strong> <code>ipfs daemon</code> on the dev machine; app uses <code>127.0.0.1:5001</code> (Node) or LAN IP (physical mobile device)</li>
+<li><strong>Single VPS:</strong> one Kubo instance; app points to <code>https://node.example.com:5001</code></li>
+<li><strong>Multi-node failover:</strong> primary local + backup VPS; <code>withFailover</code> masks transient failures</li>
+</ol>
+<p>In all patterns, Meshkit adds <strong>wallet-bound PPT checks</strong> before storage operations. Network reachability alone is not enough.</p>
+<hr>
+<h2>4. Problem Statement</h2>
+<h3>4.1 Why Meshkit Needs to Exist</h3>
+<p>Mobile and web developers lack a <strong>purpose-built SDK</strong> for IPFS storage that also solves <strong>who may store data</strong>. Meshkit is proposed to address both:</p>
+<ol>
+<li><strong>IPFS integration gap:</strong> Raw Kubo RPC is low-level; mobile needs polyfills; production needs failover across nodes.</li>
+<li><strong>Access control gap:</strong> Shared Kubo URLs are not user-level permissions; each app should not rebuild wallet + token logic.</li>
+<li><strong>Onboarding gap:</strong> When a user cannot store data, there must be a standard path to qualify (hold PPT, buy on Uniswap).</li>
+</ol>
+<h3>4.2 Technical Problems Meshkit Addresses</h3>
+<ol>
+<li><p><strong>No verifiable user entitlement:</strong> Apps cannot ask: &quot;Is this user allowed to store on IPFS?&quot; without custom infrastructure.</p>
+</li>
+<li><p><strong>No scalable access policy:</strong> Kubo operators cannot map users to quotas; header auth is per-deployment and not portable across React Native, Capacitor, and Node.</p>
+</li>
+<li><p><strong>No standardized denial path:</strong> Blocked users need a single UX: hold PPT, or acquire it on Uniswap V3.</p>
+</li>
+</ol>
+<h3>4.3 Why PPT Is Part of the Meshkit Proposal</h3>
+<p>PPT is the chosen access credential <strong>for Meshkit</strong> because ERC-20 <code>balanceOf</code> on Arbitrum is verifiable, portable, and liquid on Uniswap: without per-operation gas in v1.</p>
+<h3>4.4 Stakeholders</h3>
+<table>
+<thead>
+<tr>
+<th>Stakeholder</th>
+<th>What Meshkit gives them</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>App developer</strong></td>
+<td>One SDK: IPFS storage + PPT gate via <code>Meshkit.init</code></td>
+</tr>
+<tr>
+<td><strong>End user</strong></td>
+<td>Decentralized storage in apps; clear path to get PPT</td>
+</tr>
+<tr>
+<td><strong>Park Pro ecosystem</strong></td>
+<td>A product that gives PPT real utility</td>
+</tr>
+<tr>
+<td><strong>Node operator</strong></td>
+<td>Reduced casual abuse via client-side PPT checks</td>
+</tr>
+<tr>
+<td><strong>Documentation author</strong></td>
+<td>This proposal as single source of truth</td>
+</tr>
+</tbody></table>
+<h3>4.5 Formal Problem Statement</h3>
+<blockquote>
+<p><strong>Meshkit shall provide a TypeScript SDK for IPFS storage (upload, retrieve, pin) against Kubo nodes with multi-node failover and mobile platform support, requiring wallets to hold a minimum balance of PPT on Arbitrum before storage operations, and directing ineligible users to acquire PPT on Uniswap V3.</strong></p>
+</blockquote>
+<h3>4.6 Meshkit Product Definition (v1)</h3>
+<table>
+<thead>
+<tr>
+<th>Capability</th>
+<th>Meshkit v1</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>IPFS operations</td>
+<td><code>upload</code>, <code>retrieve</code>, <code>pin</code> via Kubo RPC</td>
+</tr>
+<tr>
+<td>Resilience</td>
+<td>Multi-node failover, health checks at init</td>
+</tr>
+<tr>
+<td>Access</td>
+<td>PPT <code>balanceOf</code> gate on Arbitrum</td>
+</tr>
+<tr>
+<td>Denial UX</td>
+<td><code>TokenGateError</code> + Uniswap V3 links</td>
+</tr>
+<tr>
+<td>Platforms</td>
+<td>Node.js, React Native, Capacitor</td>
+</tr>
+<tr>
+<td>Dev mode</td>
+<td><code>tokenGate.enabled: false</code> for local testing</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>5. Goals, Constraints, and Non-Goals</h2>
+<h3>5.1 Goals</h3>
+<p><strong>G1: Entitlement before IO</strong><br>Every gated operation (<code>upload</code>, <code>retrieve</code>, <code>pin</code>) must await a successful token gate evaluation before any Kubo RPC is invoked.</p>
+<p><strong>G2: Fail closed on ambiguity</strong><br>If the gate cannot determine eligibility (RPC down, wrong chain, no wallet address), the operation must <strong>not</strong> proceed to IPFS. The error must state what the user or developer should fix.</p>
+<p><strong>G3: Developer ergonomics</strong><br>Existing <code>Meshkit.init({ nodes })</code> call sites add a <code>tokenGate</code> block; method signatures on <code>Meshkit</code> stay unchanged.</p>
+<p><strong>G4: Actionable end-user denial</strong><br><code>TokenGateError</code> includes: current balance, required minimum, formatted human amounts, and links to PPT/ARB and PPT/USDC on Uniswap V3.</p>
+<p><strong>G5: Documented thoroughly</strong><br>This proposal plus the Documentation skill (§16) enable accurate public docs without re-deriving design decisions.</p>
+<h3>5.2 Constraints</h3>
+<p><strong>C1: Client-side enforcement in v1</strong><br>The gate runs in the app process. Kubo remains unaware of PPT unless the operator adds separate middleware (out of v1 scope).</p>
+<p><strong>C2: Arbitrum only</strong><br>PPT contract and <code>balanceOf</code> reads target Arbitrum One (<code>chainId</code> 42161) unless §18 changes this.</p>
+<p><strong>C3: Read-only chain interaction</strong><br>v1 only <strong>reads</strong> <code>balanceOf</code>. No <code>transfer</code>, <code>approve</code>, or meta-transactions.</p>
+<p><strong>C4: Backward compatibility</strong><br><code>tokenGate</code> is optional. Omitting it or setting <code>enabled: false</code> preserves today&#39;s behavior.</p>
+<h3>5.3 Non-Goals (v1)</h3>
+<ul>
+<li>Burning or transferring PPT per operation</li>
+<li>NFT-based gating (ERC-721/1155)</li>
+<li>Staking or time-locked balances</li>
+<li>Replacing Kubo or embedding IPFS in-process</li>
+<li>Guaranteed server-side enforcement without operator action</li>
+<li>Wallet private key management inside Meshkit</li>
+</ul>
+<hr>
+<h2>6. Token-Gated Access Model</h2>
+<h3>6.1 Gate Type: Threshold Balance (Hold-to-Use)</h3>
+<p>Meshkit implements a <strong>static threshold gate</strong> as part of the product:</p>
+<pre><code>eligible(wallet) := balanceOf(PPT, wallet) &gt;= minimumBalance
+</code></pre>
+<ul>
+<li><code>minimumBalance</code> is in <strong>token base units</strong> (wei-style: <code>10n ** 18n</code> for 1 PPT if decimals = 18)</li>
+<li>No expiry: balance checked at operation time (with optional short TTL cache per §9.4)</li>
+<li>Spending PPT on Uniswap reduces balance; user may become ineligible until they hold enough again</li>
+</ul>
+<h3>6.2 Gating Granularity</h3>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Gated?</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>upload</code></td>
+<td><strong>Yes</strong></td>
+<td>Primary cost: ingesting data onto IPFS</td>
+</tr>
+<tr>
+<td><code>retrieve</code></td>
+<td><strong>Yes</strong></td>
+<td>Prevents free egress via shared Kubo URL</td>
+</tr>
+<tr>
+<td><code>pin</code></td>
+<td><strong>Yes</strong></td>
+<td>Pinning consumes node storage</td>
+</tr>
+<tr>
+<td><code>Meshkit.init</code></td>
+<td><strong>No</strong></td>
+<td>Allow node health diagnosis without tokens</td>
+</tr>
+<tr>
+<td><code>healthCheck</code></td>
+<td><strong>No</strong></td>
+<td>Internal; used at init</td>
+</tr>
+<tr>
+<td><code>createMeshkitClient</code> (low-level)</td>
+<td><strong>Configurable</strong></td>
+<td>Bypass for advanced operators; default document as ungated escape hatch</td>
+</tr>
+</tbody></table>
+<h3>6.3 Decision Flow</h3>
+<pre><code class="language-mermaid">flowchart TD
+  START([App calls upload / retrieve / pin]) --&gt; ENABLED{tokenGate.enabled?}
+  ENABLED --&gt;|false| IPFS[Execute Kubo RPC via failover]
+  ENABLED --&gt;|true| WALLET{Wallet address available?}
+  WALLET --&gt;|no| WE[Throw WalletError]
+  WALLET --&gt;|yes| CHAIN{On Arbitrum?}
+  CHAIN --&gt;|no| WE
+  CHAIN --&gt;|yes| BAL[Read PPT balanceOf via RPC]
+  BAL --&gt; RPCOK{RPC success?}
+  RPCOK --&gt;|no| WE
+  RPCOK --&gt;|yes| CMP{balance &gt;= minimum?}
+  CMP --&gt;|yes| IPFS
+  CMP --&gt;|no| TGE[Throw TokenGateError + Uniswap links]
+  IPFS --&gt; DONE([Return result])
+  TGE --&gt; DENY([Propagate to app UI])
+  WE --&gt; DENY
+</code></pre>
+<h3>6.4 Relationship to the Reference Diagram</h3>
+<p>The diagram encodes the same logic from the <strong>user journey</strong> perspective:</p>
+<ol>
+<li>User opens an app using <strong>Meshkit</strong></li>
+<li>User attempts an IPFS action</li>
+<li>System asks: <strong>&quot;Holds Park Pro Tokens?&quot;</strong><ul>
+<li><strong>Yes</strong> → action proceeds against <strong>IPFS</strong></li>
+<li><strong>No</strong> → user is instructed to <strong>get PPT on Uniswap V3</strong> (PPT/ARB or PPT/USDC), then retry</li>
+</ul>
+</li>
+</ol>
+<p>The SDK automates step 3; the app&#39;s job is to surface errors and deep-link to Uniswap when needed.</p>
+<h3>6.5 What &quot;Perform Any Action&quot; Means</h3>
+<p>For v1, &quot;any action&quot; is defined as <strong>all methods on <code>Meshkit</code> that mutate or read IPFS content through Kubo</strong>:</p>
+<ul>
+<li><code>upload</code>, <code>retrieve</code>, <code>pin</code></li>
+</ul>
+<p>Future methods (e.g. <code>unpin</code>, <code>ls</code>, <code>stat</code>) should <strong>inherit the same gate</strong> via a single internal <code>assertTokenGate()</code> hook so policy stays centralized.</p>
+<hr>
+<h2>7. Park Pro Token (PPT) Specification</h2>
+<h3>6.1 Token Identity</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Name</td>
+<td>Park Pro Token</td>
+</tr>
+<tr>
+<td>Symbol</td>
+<td>PPT</td>
+</tr>
+<tr>
+<td>Standard</td>
+<td>ERC-20</td>
+</tr>
+<tr>
+<td>Network</td>
+<td>Arbitrum One</td>
+</tr>
+<tr>
+<td>Chain ID</td>
+<td><code>42161</code></td>
+</tr>
+<tr>
+<td>Contract address</td>
+<td><code>[TBD: canonical mainnet address]</code></td>
+</tr>
+<tr>
+<td>Decimals</td>
+<td><code>[TBD: typically 18]</code></td>
+</tr>
+</tbody></table>
+<h3>6.2 Relevant ERC-20 Interface</h3>
+<p>Only <strong>view</strong> functions are required for v1:</p>
+<pre><code class="language-solidity">function balanceOf(address account) external view returns (uint256);
+function decimals() external view returns (uint8);
+function symbol() external view returns (string);
+</code></pre>
+<p>Meshkit may call <code>decimals()</code> once at init to format errors, or rely on configured decimals to avoid an extra RPC round-trip.</p>
+<h3>6.3 Minimum Balance</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>minimumBalance</code></td>
+<td>Smallest <code>uint256</code> balance in base units required for access</td>
+</tr>
+<tr>
+<td>Default</td>
+<td><code>[TBD: e.g. 1 PPT = 10^18 base units]</code></td>
+</tr>
+<tr>
+<td>Override</td>
+<td>App may set higher threshold; may not set lower than issuer policy if a canonical default is published</td>
+</tr>
+</tbody></table>
+<p><strong>Policy note:</strong> Too low → spam; too high → onboarding friction. This is a product decision recorded in §18.</p>
+<h3>6.4 Acquisition: Uniswap V3</h3>
+<p>Users without sufficient PPT acquire it on <strong>Uniswap V3</strong> on Arbitrum.</p>
+<table>
+<thead>
+<tr>
+<th>Pool pair</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>PPT/ARB</strong></td>
+<td>Swap from native Arbitrum ETH ecosystem token</td>
+</tr>
+<tr>
+<td><strong>PPT/USDC</strong></td>
+<td>Swap from stablecoin</td>
+</tr>
+</tbody></table>
+<p>Meshkit does not execute swaps. It provides <strong>URLs</strong> in <code>TokenGateError</code> and documentation.</p>
+<table>
+<thead>
+<tr>
+<th>Link</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>uniswap.pptArb</code></td>
+<td>Deep link to PPT/ARB pool <code>[TBD]</code></td>
+</tr>
+<tr>
+<td><code>uniswap.pptUsdc</code></td>
+<td>Deep link to PPT/USDC pool <code>[TBD]</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h2>8. System Architecture</h2>
+<h3>7.1 Logical Architecture</h3>
+<pre><code class="language-mermaid">flowchart TB
+  subgraph Application[&quot;Application Layer&quot;]
+    UI[App UI]
+    WK[Wallet Provider&lt;br/&gt;MetaMask / WalletConnect / RN SDK]
+  end
+
+  subgraph MeshkitSDK[&quot;@ipfs-meshkit/core&quot;]
+    MF[Meshkit Facade]
+    TG[Token Gate Service]
+    NP[Node Pool / Failover]
+    MC[MeshkitClient × N]
+  end
+
+  subgraph Chain[&quot;Arbitrum&quot;]
+    RPC[Arbitrum JSON-RPC]
+    PPT[PPT ERC-20 Contract]
+  end
+
+  subgraph Storage[&quot;IPFS&quot;]
+    K1[Kubo Node 1]
+    K2[Kubo Node 2]
+  end
+
+  UI --&gt; MF
+  WK --&gt; TG
+  MF --&gt; TG
+  TG --&gt;|eth_call balanceOf| RPC
+  RPC --&gt; PPT
+  TG --&gt;|allow| NP
+  MF --&gt; NP
+  NP --&gt; MC
+  MC --&gt; K1
+  MC --&gt; K2
+</code></pre>
+<h3>7.2 Layer Responsibilities</h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Application</strong></td>
+<td>Wallet connection, chain switch UI, display <code>TokenGateError</code>, open Uniswap</td>
+</tr>
+<tr>
+<td><strong>Meshkit facade</strong></td>
+<td>Public API; orchestrates gate then failover</td>
+</tr>
+<tr>
+<td><strong>Token gate service</strong></td>
+<td>Wallet address resolution, chain validation, balance read, cache, errors</td>
+</tr>
+<tr>
+<td><strong>Node pool</strong></td>
+<td>Unchanged failover semantics after gate passes</td>
+</tr>
+<tr>
+<td><strong>MeshkitClient</strong></td>
+<td>Kubo RPC via <code>kubo-rpc-client</code></td>
+</tr>
+<tr>
+<td><strong>Arbitrum RPC</strong></td>
+<td><code>eth_call</code> to PPT contract</td>
+</tr>
+<tr>
+<td><strong>Kubo</strong></td>
+<td>Content addressing, pin store</td>
+</tr>
+</tbody></table>
+<h3>7.3 Call Order Invariant</h3>
+<p>For every gated operation, the SDK must guarantee:</p>
+<pre><code>1. assertTokenGate()   // may throw TokenGateError | WalletError
+2. withFailover(...)   // may throw MeshkitError
+</code></pre>
+<p>Never reverse this order. Hitting Kubo before the gate would violate G1.</p>
+<h3>7.4 Module Layout (Proposed)</h3>
+<pre><code>packages/core/src/
+├── meshkit.ts              # add gate calls before upload/retrieve/pin
+├── create-client.ts        # unchanged Kubo client
+├── node-pool.ts            # unchanged
+├── health.ts               # unchanged
+├── types.ts                # extend MeshkitInitOptions, errors
+└── token-gate/
+    ├── index.ts            # createTokenGate, assertTokenGate
+    ├── balance.ts          # balanceOf via viem/ethers
+    ├── errors.ts           # TokenGateError, WalletError
+    ├── format.ts           # base units → human string
+    └── types.ts            # TokenGateConfig
+</code></pre>
+<hr>
+<h2>9. Detailed Component Design</h2>
+<h3>8.1 TokenGateConfig</h3>
+<pre><code class="language-typescript">interface TokenGateConfig {
+  /** Master switch. false = skip all gate logic (dev/test). */
+  enabled: boolean;
+
+  /** PPT contract on Arbitrum. */
+  contractAddress: `0x${string}`;
+
+  /** Must be 42161 for canonical PPT unless multi-chain is added later. */
+  chainId: number;
+
+  /**
+   * Wallet address to check. Typically the connected account.
+   * Meshkit does not connect wallets; the app supplies this.
+   */
+  walletAddress: `0x${string}`;
+
+  /** Minimum balance in token base units (not human-readable floats). */
+  minimumBalance: bigint;
+
+  /** Token decimals for display; if omitted, fetch once from contract. */
+  decimals?: number;
+
+  /** Arbitrum HTTP RPC URL for eth_call. */
+  rpcUrl: string;
+
+  /** Uniswap deep links shown in TokenGateError. */
+  uniswap: {
+    pptArb: string;
+    pptUsdc: string;
+  };
+
+  /** Optional: balance cache TTL in milliseconds. Default 30_000. */
+  balanceCacheTtlMs?: number;
+}
+</code></pre>
+<p><strong>Design choice:</strong> <code>walletAddress</code> is passed in config (or via a getter) rather than Meshkit owning WalletConnect. Keeps core free of UI dependencies and matches how mobile apps already manage wallets.</p>
+<h3>8.2 Token Gate Service</h3>
+<p><strong><code>createTokenGate(config: TokenGateConfig): TokenGate</code></strong></p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>assertEligible()</code></td>
+<td>Throws if not eligible; no-op if <code>enabled: false</code></td>
+</tr>
+<tr>
+<td><code>getBalance()</code></td>
+<td>Returns current <code>bigint</code> balance (uses cache)</td>
+</tr>
+<tr>
+<td><code>isEligible()</code></td>
+<td>Non-throwing boolean</td>
+</tr>
+<tr>
+<td><code>invalidateCache()</code></td>
+<td>Force next read on-chain (call after user returns from Uniswap)</td>
+</tr>
+</tbody></table>
+<p><strong>Balance read implementation:</strong></p>
+<ol>
+<li><code>eth_call</code> to <code>balanceOf(walletAddress)</code> with PPT ABI</li>
+<li>Decode <code>uint256</code> return</li>
+<li>Compare <code>&gt;= minimumBalance</code></li>
+</ol>
+<p>Use a library (recommended: <strong>viem</strong> <code>createPublicClient</code> + <code>readContract</code>) for ABI encoding and RPC handling.</p>
+<h3>8.3 Integration into Meshkit</h3>
+<pre><code class="language-typescript">class Meshkit {
+  private readonly tokenGate: TokenGate | null;
+
+  upload(data: Uint8Array): Promise&lt;string&gt; {
+    return this.runGated((client) =&gt; client.upload(data));
+  }
+
+  private async runGated&lt;T&gt;(
+    op: (client: MeshkitClient) =&gt; Promise&lt;T&gt;,
+  ): Promise&lt;T&gt; {
+    await this.tokenGate?.assertEligible();
+    return withFailover(this.clients, op);
+  }
+}
+</code></pre>
+<p><code>Meshkit.init</code> constructs <code>TokenGate</code> when <code>options.tokenGate</code> is present and <code>enabled !== false</code>.</p>
+<h3>8.4 Balance Cache</h3>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Approach</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>RPC rate limits</td>
+<td>Cache last <code>(balance, timestamp)</code> per wallet+contract</td>
+</tr>
+<tr>
+<td>Stale eligibility</td>
+<td>TTL default 30s; document <code>invalidateCache()</code> after swap</td>
+</tr>
+<tr>
+<td>User spends PPT mid-session</td>
+<td>May pass gate then drop below threshold before next op; next op fails</td>
+</tr>
+</tbody></table>
+<p>Cache is an optimization, not a security boundary (client-side gate is already bypassable; see §14).</p>
+<h3>8.5 Chain Validation</h3>
+<p>Before <code>balanceOf</code>, verify:</p>
+<ul>
+<li><code>eth_chainId</code> matches <code>config.chainId</code></li>
+<li>If mismatch → <code>WalletError</code> with message to switch to Arbitrum</li>
+</ul>
+<p>Optional: <code>wallet_getChainId</code> when using an injected provider passed from the app.</p>
+<hr>
+<h2>10. Operation Lifecycles</h2>
+<h3>9.1 Initialization (Ungated)</h3>
+<pre><code class="language-mermaid">sequenceDiagram
+  participant App
+  participant Meshkit
+  participant Health
+  participant Kubo
+
+  App-&gt;&gt;Meshkit: init({ nodes, tokenGate })
+  Meshkit-&gt;&gt;Health: filterHealthy(clients)
+  loop each node
+    Health-&gt;&gt;Kubo: ipfs.id()
+    Kubo--&gt;&gt;Health: ok / fail
+  end
+  Health--&gt;&gt;Meshkit: healthy clients
+  Meshkit--&gt;&gt;App: Meshkit instance
+</code></pre>
+<p>Init does <strong>not</strong> require PPT. Developers can verify Kubo connectivity before wallet setup.</p>
+<h3>9.2 Gated Upload</h3>
+<pre><code class="language-mermaid">sequenceDiagram
+  participant App
+  participant Meshkit
+  participant Gate
+  participant Arbitrum
+  participant Kubo
+
+  App-&gt;&gt;Meshkit: upload(bytes)
+  Meshkit-&gt;&gt;Gate: assertEligible()
+  Gate-&gt;&gt;Arbitrum: eth_call balanceOf(wallet)
+  Arbitrum--&gt;&gt;Gate: balance
+
+  alt balance &lt; minimum
+    Gate--&gt;&gt;App: throw TokenGateError
+  else balance &gt;= minimum
+    Gate--&gt;&gt;Meshkit: ok
+    Meshkit-&gt;&gt;Kubo: ipfs.add (failover)
+    Kubo--&gt;&gt;Meshkit: CID
+    Meshkit--&gt;&gt;App: CID
+  end
+</code></pre>
+<h3>9.3 Gated Retrieve</h3>
+<p>Same as upload through <code>assertEligible()</code>, then <code>ipfs.cat(cid)</code> via failover.</p>
+<h3>9.4 Gated Pin</h3>
+<p>Same gate, then <code>ipfs.pin.add(cid)</code>.</p>
+<h3>9.5 Denied User Path (Product Flow)</h3>
+<pre><code class="language-mermaid">sequenceDiagram
+  participant User
+  participant App
+  participant Meshkit
+  participant Uniswap
+
+  User-&gt;&gt;App: Upload invoice
+  App-&gt;&gt;Meshkit: upload(data)
+  Meshkit--&gt;&gt;App: TokenGateError
+  App-&gt;&gt;User: Show balance + Get PPT
+  User-&gt;&gt;Uniswap: Swap ARB/USDC → PPT
+  User-&gt;&gt;App: Retry upload
+  App-&gt;&gt;Meshkit: invalidateCache + upload
+  Meshkit--&gt;&gt;App: CID
+</code></pre>
+<hr>
+<h2>11. API Specification</h2>
+<h3>11.1 Extended <code>MeshkitInitOptions</code></h3>
+<pre><code class="language-typescript">interface MeshkitInitOptions {
+  nodes: string[];
+  headers?: Record&lt;string, string&gt;;
+  tokenGate?: TokenGateConfig;
+}
+</code></pre>
+<h3>11.2 Usage Example (Full)</h3>
+<pre><code class="language-typescript">import { Meshkit, TokenGateError } from &#39;@ipfs-meshkit/core&#39;;
+
+const mk = await Meshkit.init({
+  nodes: [&#39;https://ipfs.example.com:5001&#39;],
+  tokenGate: {
+    enabled: true,
+    contractAddress: &#39;0xTBD&#39;,
+    chainId: 42161,
+    walletAddress: &#39;0xUserWallet&#39;,
+    minimumBalance: 10n ** 18n, // 1 PPT if 18 decimals
+    rpcUrl: &#39;https://arb1.arbitrum.io/rpc&#39;,
+    uniswap: {
+      pptArb: &#39;https://app.uniswap.org/#/swap?chain=arbitrum&amp;TBD&#39;,
+      pptUsdc: &#39;https://app.uniswap.org/#/swap?chain=arbitrum&amp;TBD&#39;,
+    },
+  },
+});
+
+try {
+  const cid = await mk.upload(invoiceBytes);
+} catch (err) {
+  if (err instanceof TokenGateError) {
+    // err.balance, err.required, err.uniswap.pptArb, err.uniswap.pptUsdc
+  }
+}
+</code></pre>
+<h3>11.3 Development Bypass</h3>
+<pre><code class="language-typescript">await Meshkit.init({
+  nodes: [&#39;http://127.0.0.1:5001&#39;],
+  tokenGate: { enabled: false, /* other fields ignored */ },
+});
+// Or omit tokenGate entirely
+</code></pre>
+<h3>11.4 Dynamic Wallet Address</h3>
+<p>Apps that switch accounts should either:</p>
+<ul>
+<li>Re-call <code>Meshkit.init</code> with updated <code>walletAddress</code>, or</li>
+<li><code>[TBD]</code> <code>Meshkit.setTokenGate({ walletAddress })</code> if a runtime update API is added</li>
+</ul>
+<p>Document one canonical pattern in the skill (§16).</p>
+<hr>
+<h2>12. Error Handling and User Feedback</h2>
+<h3>12.1 Error Types</h3>
+<h4><code>TokenGateError</code></h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>message</code></td>
+<td><code>string</code></td>
+<td>Human-readable summary</td>
+</tr>
+<tr>
+<td><code>balance</code></td>
+<td><code>bigint</code></td>
+<td>Current PPT balance (base units)</td>
+</tr>
+<tr>
+<td><code>required</code></td>
+<td><code>bigint</code></td>
+<td><code>minimumBalance</code></td>
+</tr>
+<tr>
+<td><code>balanceFormatted</code></td>
+<td><code>string</code></td>
+<td>e.g. <code>&quot;0.5 PPT&quot;</code></td>
+</tr>
+<tr>
+<td><code>requiredFormatted</code></td>
+<td><code>string</code></td>
+<td>e.g. <code>&quot;1 PPT&quot;</code></td>
+</tr>
+<tr>
+<td><code>walletAddress</code></td>
+<td><code>string</code></td>
+<td>Checked address</td>
+</tr>
+<tr>
+<td><code>uniswap</code></td>
+<td><code>{ pptArb, pptUsdc }</code></td>
+<td>Acquisition links</td>
+</tr>
+</tbody></table>
+<p><strong>Example message:</strong></p>
+<blockquote>
+<p>Insufficient Park Pro Token (PPT) balance. You have 0 PPT but need at least 1 PPT to use IPFS through Meshkit. Get PPT on Uniswap: PPT/ARB or PPT/USDC.</p>
+</blockquote>
+<h4><code>WalletError</code></h4>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Example message</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Missing <code>walletAddress</code></td>
+<td>Connect a wallet to use IPFS.</td>
+</tr>
+<tr>
+<td>Wrong chain</td>
+<td>Switch your wallet to Arbitrum (chain ID 42161).</td>
+</tr>
+<tr>
+<td>RPC failure</td>
+<td>Could not read PPT balance. Check your network connection.</td>
+</tr>
+</tbody></table>
+<h4><code>MeshkitError</code> (existing)</h4>
+<p>Unchanged: all Kubo nodes failed. Distinct from token gating.</p>
+<h3>12.2 Error Precedence</h3>
+<p>If both gate and Kubo could fail, <strong>gate is checked first</strong>. Users without PPT should not trigger Kubo traffic.</p>
+<h3>12.3 UI Guidelines for App Developers</h3>
+<ol>
+<li>Catch <code>TokenGateError</code> separately from <code>MeshkitError</code></li>
+<li>Show formatted balances, not raw <code>bigint</code></li>
+<li>Render two buttons: &quot;Get PPT (ARB)&quot; and &quot;Get PPT (USDC)&quot; opening <code>uniswap</code> links</li>
+<li>On return from browser, call <code>invalidateCache()</code> before retry</li>
+</ol>
+<hr>
+<h2>13. Platform Integration</h2>
+<h3>13.1 Node.js / Desktop</h3>
+<ul>
+<li>Wallet via browser injection not applicable; use server-side wallet address + RPC, or WalletConnect in Electron</li>
+<li><code>tokenGate.enabled: false</code> for CI and unit tests</li>
+</ul>
+<h3>13.2 React Native</h3>
+<p>Existing requirements remain:</p>
+<ul>
+<li>Import <code>@ipfs-meshkit/react-native/polyfills</code> before Meshkit</li>
+<li>Use LAN IP or VPS URL, not <code>127.0.0.1</code> on device</li>
+</ul>
+<p><strong>Additional for v1:</strong></p>
+<ul>
+<li>Integrate a RN wallet library (e.g. WalletConnect, MetaMask SDK)</li>
+<li>Obtain <code>walletAddress</code> and ensure Arbitrum chain before <code>Meshkit.init</code> or pass a getter</li>
+<li>Arbitrum RPC: use a reliable provider; avoid blocking the JS thread on long <code>eth_call</code></li>
+</ul>
+<h3>13.3 Capacitor / Ionic</h3>
+<ul>
+<li>Web: <code>window.ethereum</code> may be available in WebView with injected provider</li>
+<li>Native: bridge to wallet app via deep link or WalletConnect</li>
+<li>Capacitor plugin may later wrap gated <code>Meshkit</code> init; v1 can use core directly from app code</li>
+</ul>
+<h3>13.4 Polyfills and Chain Libraries</h3>
+<p>Token gate adds <strong>Ethereum JSON-RPC</strong> dependency. Keep it out of <code>react-native/polyfills.ts</code>; wallet + viem/ethers are app-level dependencies to avoid bloating apps that use <code>enabled: false</code>.</p>
+<hr>
+<h2>14. Security Model and Threat Analysis</h2>
+<h3>14.1 Trust Boundaries</h3>
+<pre><code class="language-mermaid">flowchart LR
+  subgraph TrustedByIssuer[&quot;Trusted by Park Pro&quot;]
+    PPT[PPT contract on Arbitrum]
+  end
+
+  subgraph Untrusted[&quot;Untrusted client environment&quot;]
+    SDK[Meshkit SDK]
+    App[App binary / JS bundle]
+  end
+
+  subgraph Operator[&quot;Node operator control&quot;]
+    Kubo[Kubo RPC]
+  end
+
+  App --&gt; SDK
+  SDK --&gt;|read-only| PPT
+  SDK --&gt;|HTTP| Kubo
+</code></pre>
+<h3>14.2 What the Gate Provides</h3>
+<ul>
+<li><strong>Honest app path enforcement:</strong> Official SDK refuses operations for ineligible wallets</li>
+<li><strong>Consistent UX:</strong> Documented errors and onboarding</li>
+<li><strong>Policy centralization:</strong> One place to update threshold and contract address</li>
+</ul>
+<h3>14.3 What the Gate Does Not Provide</h3>
+<table>
+<thead>
+<tr>
+<th>Threat</th>
+<th>Mitigation in v1</th>
+<th>Stronger mitigation (future)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>User patches SDK / skips gate</td>
+<td>None on client alone</td>
+<td>Signed attestations, server proxy</td>
+</tr>
+<tr>
+<td>Leaked Kubo URL</td>
+<td>None</td>
+<td>API auth, IP allowlist, VPN</td>
+</tr>
+<tr>
+<td>Fake PPT contract in config</td>
+<td>Document canonical address</td>
+<td>Hardcode mainnet address in production builds</td>
+</tr>
+<tr>
+<td>RPC spoofing</td>
+<td>Use trusted RPC URL</td>
+<td>Multiple RPC sources, proof verification</td>
+</tr>
+<tr>
+<td>Sybil with minimal PPT</td>
+<td><code>minimumBalance</code> policy</td>
+<td>Higher threshold, rate limits on proxy</td>
+</tr>
+</tbody></table>
+<p><strong>Conclusion:</strong> The client-side token gate is <strong>economic and UX policy</strong>, not a cryptographic access control on Kubo. Operators exposing public Kubo must add server-side controls for high-assurance deployments.</p>
+<h3>14.4 Fail-Closed Rules</h3>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>balanceOf</code> reverts</td>
+<td><code>WalletError</code>, no IPFS</td>
+</tr>
+<tr>
+<td>RPC timeout</td>
+<td><code>WalletError</code>, no IPFS</td>
+</tr>
+<tr>
+<td><code>walletAddress</code> zero address</td>
+<td><code>WalletError</code>, no IPFS</td>
+</tr>
+<tr>
+<td><code>enabled: true</code> but missing config fields</td>
+<td>Throw at <code>init</code>, not at first upload</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>15. Testing Strategy</h2>
+<h3>15.1 Unit Tests</h3>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Cases</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Token gate</td>
+<td>balance ≥ threshold, balance &lt; threshold, cache TTL, <code>enabled: false</code></td>
+</tr>
+<tr>
+<td>Formatting</td>
+<td>decimals 18, edge 0 balance</td>
+</tr>
+<tr>
+<td>Meshkit integration</td>
+<td>gate invoked before <code>upload</code>; mock client not called on denial</td>
+</tr>
+</tbody></table>
+<h3>15.2 Integration Tests</h3>
+<ul>
+<li>Mock Arbitrum RPC returning fixed <code>balanceOf</code></li>
+<li>Mock Kubo or use testcontainers <code>[TBD]</code></li>
+<li>Failover still works when gate passes</li>
+</ul>
+<h3>15.3 Manual E2E</h3>
+<ol>
+<li>Wallet with 0 PPT → <code>TokenGateError</code> with links</li>
+<li>Buy PPT on Uniswap testnet or mainnet <code>[TBD environment]</code></li>
+<li>Retry → successful upload</li>
+<li>Wrong chain → <code>WalletError</code></li>
+</ol>
+<hr>
+<h2>16. Documentation Skill Specification</h2>
+<p>This section defines the <strong>Cursor Documentation skill</strong> that authors public docs from this specification. It is part of the deliverable, not an afterthought.</p>
+<h3>16.1 Skill Purpose</h3>
+<p>Enable agents and contributors to write <strong>accurate, consistent</strong> documentation for <strong>Meshkit:</strong> the full SDK product, not PPT in isolation. <strong>§2 is the value-proposition source of truth.</strong></p>
+<h3>16.2 Skill Metadata</h3>
+<pre><code class="language-yaml">---
+name: meshkit-token-gate-docs
+description: &gt;-
+  Authors documentation for the Meshkit project: IPFS storage SDK with PPT
+  token-gated access. Use when writing README, integration guides, API reference,
+  value proposition copy, TokenGateError handling, Uniswap onboarding, or
+  platform guides for React Native and Capacitor.
+---
+</code></pre>
+<p><strong>Location:</strong> <code>.cursor/skills/meshkit-token-gate-docs/SKILL.md</code></p>
+<h3>16.3 Skill File Tree</h3>
+<pre><code>.cursor/skills/meshkit-token-gate-docs/
+├── SKILL.md
+├── reference/
+│   ├── token-contract.md      # Canonical PPT address, chainId, decimals
+│   ├── api-token-gate.md      # TokenGateConfig, methods, errors
+│   ├── architecture.md        # Diagrams distilled from Proposal.md §8-10
+│   ├── uniswap-onboarding.md  # Step-by-step acquire PPT
+│   └── platform-guides.md     # RN, Capacitor, Node
+├── examples/
+│   ├── quickstart-gated.md
+│   ├── handle-token-gate-error.md
+│   └── dev-bypass.md
+└── templates/
+    ├── readme-section.md
+    └── troubleshooting-entry.md
+</code></pre>
+<h3>16.4 SKILL.md Required Sections</h3>
+<p>When implementing the skill file, include:</p>
+<ol>
+<li><strong>Canonical source:</strong> <code>Proposal.md</code> at repo root; <strong>§2 defines the Meshkit product</strong></li>
+<li><strong>Terminology:</strong> Park Pro Token (PPT), token-gated access, Arbitrum, Kubo, hold-to-use</li>
+<li><strong>Mandatory narrative:</strong> Every user-facing doc explains: Meshkit → PPT check → IPFS or Uniswap</li>
+<li><strong>Diagram:</strong> Embed <code>docs/assets/token-gate-flow.png</code> or §6.3 mermaid in overview docs</li>
+<li><strong>Code rules:</strong> <code>minimumBalance</code> as <code>bigint</code>; never float literals for token amounts</li>
+<li><strong>Error copy template:</strong> From §12.1</li>
+<li><strong>Validation checklist:</strong> From §16.5 before publishing</li>
+</ol>
+<h3>16.5 Documentation Validation Checklist</h3>
+<ul>
+<li><input disabled="" type="checkbox"> PPT contract matches <code>reference/token-contract.md</code></li>
+<li><input disabled="" type="checkbox"> <code>chainId</code> is 42161 (or documented exception)</li>
+<li><input disabled="" type="checkbox"> Gated ops: <code>upload</code>, <code>retrieve</code>, <code>pin</code> only</li>
+<li><input disabled="" type="checkbox"> Init is <strong>not</strong> gated</li>
+<li><input disabled="" type="checkbox"> Uniswap links match PPT/ARB and PPT/USDC pools</li>
+<li><input disabled="" type="checkbox"> Mobile LAN/cleartext caveats preserved</li>
+<li><input disabled="" type="checkbox"> Security §14.3 limitation stated where relevant: client gate ≠ Kubo ACL</li>
+<li><input disabled="" type="checkbox"> No private keys in examples</li>
+</ul>
+<h3>16.6 Audience → Document Mapping</h3>
+<table>
+<thead>
+<tr>
+<th>Audience</th>
+<th>Document</th>
+<th>Key content</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>App developer</td>
+<td>README + <code>quickstart-gated.md</code></td>
+<td><code>Meshkit.init</code>, try/catch, dev bypass</td>
+</tr>
+<tr>
+<td>End user</td>
+<td><code>uniswap-onboarding.md</code></td>
+<td>How to buy PPT, retry</td>
+</tr>
+<tr>
+<td>Mobile developer</td>
+<td><code>platform-guides.md</code></td>
+<td>Polyfills + wallet + Arbitrum RPC</td>
+</tr>
+<tr>
+<td>Security reviewer</td>
+<td><code>architecture.md</code> + Proposal §14</td>
+<td>Threat model, fail-closed</td>
+</tr>
+<tr>
+<td>Contributor</td>
+<td>Proposal.md</td>
+<td>Full specification</td>
+</tr>
+</tbody></table>
+<h3>16.7 Agent Workflow</h3>
+<pre><code>1. Read Proposal.md § relevant to the task
+2. Confirm [TBD] fields: do not invent contract addresses
+3. Pick template from templates/
+4. Write draft using reference/ facts
+5. Run §16.5 checklist
+6. Cross-link README ↔ docs/token-gate/*
+</code></pre>
+<hr>
+<h2>17. Implementation Roadmap</h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Meshkit deliverable</th>
+<th>Depends on</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>0</strong></td>
+<td>This project proposal + diagram</td>
+<td>:</td>
+</tr>
+<tr>
+<td><strong>1</strong></td>
+<td>Core SDK: Kubo client, failover, health (<code>@ipfs-meshkit/core</code>)</td>
+<td>:</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td>PPT token gate: <code>token-gate/</code> module, errors, unit tests</td>
+<td>PPT address <code>[TBD]</code></td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td>Integrated <code>Meshkit</code> facade with <code>tokenGate</code> in <code>Meshkit.init</code></td>
+<td>Phase 2</td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td>Platform packages: React Native polyfills, Capacitor adapter</td>
+<td>Phase 3</td>
+</tr>
+<tr>
+<td><strong>5</strong></td>
+<td>README, docs, example app (invoice upload)</td>
+<td>Phase 4</td>
+</tr>
+<tr>
+<td><strong>6</strong></td>
+<td>Documentation skill files</td>
+<td>Phase 5</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>18. Open Decisions</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Question</th>
+<th>Options</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>OD-1</td>
+<td>PPT mainnet contract address</td>
+<td>:</td>
+<td><code>[TBD]</code></td>
+</tr>
+<tr>
+<td>OD-2</td>
+<td>Default <code>minimumBalance</code></td>
+<td>1 PPT, 10 PPT, custom</td>
+<td><code>[TBD]</code></td>
+</tr>
+<tr>
+<td>OD-3</td>
+<td>Wallet library in core</td>
+<td>viem / ethers / interface only</td>
+<td><code>[TBD]</code></td>
+</tr>
+<tr>
+<td>OD-4</td>
+<td>Hardcode mainnet PPT in SDK</td>
+<td>yes for <code>enabled: true</code> default / no</td>
+<td><code>[TBD]</code></td>
+</tr>
+<tr>
+<td>OD-5</td>
+<td>Runtime <code>setTokenGate()</code> API</td>
+<td>yes / no</td>
+<td><code>[TBD]</code></td>
+</tr>
+<tr>
+<td>OD-6</td>
+<td>Balance cache TTL default</td>
+<td>0 / 30s / 60s</td>
+<td><code>[TBD]</code></td>
+</tr>
+<tr>
+<td>OD-7</td>
+<td>Uniswap deep link URLs</td>
+<td>official Uniswap format</td>
+<td><code>[TBD]</code></td>
+</tr>
+<tr>
+<td>OD-8</td>
+<td>Server-side proxy in v1.1</td>
+<td>JWT after balance check</td>
+<td><code>[TBD]</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h2>19. References</h2>
+<table>
+<thead>
+<tr>
+<th>Resource</th>
+<th>Path / URL</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Meshkit README</td>
+<td><a href="./README.md">README.md</a></td>
+</tr>
+<tr>
+<td>Core types</td>
+<td><a href="./packages/core/src/types.ts">packages/core/src/types.ts</a></td>
+</tr>
+<tr>
+<td>Meshkit facade</td>
+<td><a href="./packages/core/src/meshkit.ts">packages/core/src/meshkit.ts</a></td>
+</tr>
+<tr>
+<td>Kubo client</td>
+<td><a href="./packages/core/src/create-client.ts">packages/core/src/create-client.ts</a></td>
+</tr>
+<tr>
+<td>Token gate flow diagram</td>
+<td><a href="./docs/assets/token-gate-flow.png">docs/assets/token-gate-flow.png</a></td>
+</tr>
+<tr>
+<td>ERC-20 standard</td>
+<td><a href="https://eips.ethereum.org/EIPS/eip-20">EIP-20</a></td>
+</tr>
+<tr>
+<td>Arbitrum One</td>
+<td>Chain ID <code>42161</code></td>
+</tr>
+<tr>
+<td>Repository</td>
+<td><a href="https://github.com/seetadev/IPFS-meshkit">github.com/seetadev/IPFS-meshkit</a></td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Document History</h2>
+<table>
+<thead>
+<tr>
+<th>Version</th>
+<th>Date</th>
+<th>Summary</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0.1</td>
+<td>2026-06-16</td>
+<td>Initial outline</td>
+</tr>
+<tr>
+<td>0.2</td>
+<td>2026-06-16</td>
+<td>In-depth technical specification: problem statement, architecture, lifecycles, API, security, documentation skill</td>
+</tr>
+<tr>
+<td>0.3</td>
+<td>2026-06-16</td>
+<td>Added §2 value proposition design: PPT utility via Meshkit APIs for token-gated IPFS storage</td>
+</tr>
+<tr>
+<td>0.5</td>
+<td>2026-06-16</td>
+<td>Unified naming to Meshkit throughout</td>
+</tr>
+<tr>
+<td>0.6</td>
+<td>2026-06-16</td>
+<td>Reframed entire doc as Meshkit project proposal; PPT as access layer, not separate proposal</td>
+</tr>
+</tbody></table>
+
+</body>
+</html>

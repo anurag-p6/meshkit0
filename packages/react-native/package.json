@@ -1,0 +1,42 @@
+{
+  "name": "@ipfs-meshkit/react-native",
+  "version": "1.0.0",
+  "description": "React Native adapter for IPFS Meshkit. Re-exports @ipfs-meshkit/core with optional polyfill entry.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./polyfills": {
+      "types": "./dist/polyfills.d.ts",
+      "import": "./dist/polyfills.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@ipfs-meshkit/core": "*"
+  },
+  "peerDependencies": {
+    "react-native": ">=0.72.0",
+    "react-native-get-random-values": ">=1.11.0",
+    "react-native-url-polyfill": ">=2.0.0",
+    "react-native-fetch-api": ">=3.0.0",
+    "web-streams-polyfill": ">=4.0.0",
+    "fast-text-encoding": ">=1.0.6"
+  },
+  "devDependencies": {
+    "fast-text-encoding": "^1.0.6",
+    "react-native-fetch-api": "^3.0.0",
+    "react-native-get-random-values": "^1.11.0",
+    "react-native-url-polyfill": "^2.0.0",
+    "web-streams-polyfill": "^4.2.0"
+  }
+}

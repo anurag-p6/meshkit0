@@ -1,0 +1,833 @@
+% Meshkit Project Proposal — 18 chapters, Overleaf pdfLaTeX
+% Title page + TOC + one chapter per page. Black and white. Diagram slots are text placeholders.
+
+\documentclass[11pt,a4paper,openany]{report}
+
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{titlesec}
+\titlespacing*{\chapter}{0pt}{0.5em}{1em}
+% No paragraph indent; small space between paragraphs instead
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5em}
+
+\hypersetup{colorlinks=true, linkcolor=black, urlcolor=black, citecolor=black}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\leftmark}
+\fancyhead[R]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\thepage}\renewcommand{\headrulewidth}{0pt}}
+
+\lstdefinestyle{meshkit}{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{black},
+  columns=fullflexible,
+  keepspaces=true,
+  literate={_}{{\_}}1,
+}
+\lstset{style=meshkit}
+
+\newcommand{\diagramplaceholder}[2]{%
+  \begin{center}
+  \fbox{\begin{minipage}{0.88\textwidth}
+  \textbf{[Diagram placeholder: #1]}\\[0.6em]
+  #2
+  \end{minipage}}
+  \end{center}
+}
+
+\setcounter{tocdepth}{2}
+
+\begin{document}
+
+%---- Title page --------------------------------------------------------------
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+  {\large\bfseries Meshkit\par}
+  \vspace{1cm}
+  {\LARGE\bfseries IPFS Storage SDK with\\PPT Token-Gated Access\par}
+  \vspace{1.2cm}
+  {\large Project Proposal\par}
+  \vspace{0.6cm}
+  {\normalsize Version 1.7 (draft)\par}
+  \vfill
+  {\normalsize \today\par}
+\end{titlepage}
+
+%---- Table of contents ---------------------------------------------------------
+\pagenumbering{roman}
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+%==============================================================================
+\chapter{Introduction}
+%==============================================================================
+
+This document proposes \textbf{Meshkit}: a TypeScript SDK for IPFS storage on mobile and web, with access controlled by Park Pro Token (PPT) on Arbitrum.
+
+Meshkit is the product. PPT is the on-chain credential checked before storage operations. The two are one proposal, not separate efforts.
+
+\section{Document Map}
+
+\begin{center}
+\small
+\begin{tabular}{@{}cl@{}}
+\toprule
+\textbf{Chapter} & \textbf{Contents} \\
+\midrule
+2 & SDK foundation: Kubo client, packages, core operations \\
+3 & Problems Meshkit is built to solve \\
+4--6 & Requirements, access model, PPT specification \\
+7--8 & Architecture and API (integration surface) \\
+9 & Current progress (on-chain + SDK) \\
+10 & Testing strategy (token + application) \\
+11 & References \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Deliverables (v1)}
+
+\begin{itemize}[leftmargin=*]
+  \item Core SDK: \texttt{init}, \texttt{upload}, \texttt{retrieve}, \texttt{pin}, \texttt{unpin}, \texttt{share}; \texttt{bulkUpload} with queue; multi-node failover.
+  \item PPT gate: \texttt{balanceOf} check on Arbitrum before storage operations.
+  \item Platform packages for React Native, Flutter, and Capacitor/Ionic.
+  \item \texttt{TokenGateError} with exchange acquisition links when access is denied.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{figs/Flowchart_Meshkit.png}    \caption{Current System Architecture}
+    \label{fig:current-arch}
+\end{figure}
+
+%==============================================================================
+\chapter{Background: IPFS SDK Today}
+%==============================================================================
+
+Meshkit will be a client for \textbf{Kubo} (go-ipfs). The app does not run IPFS in-process; it calls the node's HTTP RPC API. Data is stored on whichever node(s) the developer configures.
+
+\section{Packages}
+
+\begin{center}
+\begin{tabular}{@{}lp{9cm}@{}}
+\toprule
+\textbf{Package} & \textbf{Role} \\
+\midrule
+\texttt{@ipfs-meshkit/core} & Facade, Kubo client, failover, health checks, token gate \\
+\texttt{@ipfs-meshkit/react-native} & Core + polyfills for React Native \\
+\texttt{@ipfs-meshkit/flutter} & Dart facade: Kubo client, PPT gate, API parity with core \\
+\texttt{@ipfs-meshkit/capacitor} & Capacitor adapter for Ionic / hybrid apps \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Initialization}
+
+\texttt{Meshkit.init} will accept Kubo RPC URLs in priority order and optional HTTP headers. Each node is health-checked; unreachable nodes are dropped. Init does not require a wallet or PPT.
+
+\section{Storage Operations}
+
+\begin{center}
+\begin{tabular}{@{}llp{6.2cm}@{}}
+\toprule
+\textbf{Method} & \textbf{Kubo call} & \textbf{Result} \\
+\midrule
+\texttt{upload(data)} & \texttt{ipfs.add} & CID string \\
+\texttt{retrieve(cid)} & \texttt{ipfs.cat} & File bytes \\
+\texttt{pin(cid)} / \texttt{unpin(cid)} & \texttt{ipfs.pin.add} / \texttt{pin.rm} & Pin state \\
+\texttt{share(cid)} & (none) & \texttt{ipfs://} + gateway URL \\
+\texttt{bulkUpload(items)} & queued \texttt{ipfs.add} & CID per item \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+If the primary node fails, the SDK tries the next URL in the list.
+
+\section{Deployment Patterns}
+
+\begin{enumerate}[leftmargin=*]
+  \item Local Kubo on the dev machine (LAN IP on physical mobile devices).
+  \item Single VPS hosting one Kubo instance.
+  \item Primary node plus backup node(s) for failover.
+\end{enumerate}
+
+%==============================================================================
+\chapter{Problem Statement}
+%==============================================================================
+
+\section{The Core Problem: No Mobile-Ready IPFS SDK}
+
+Developers building \textbf{mobile and hybrid apps} (React Native, Flutter, Capacitor/Ionic) who want IPFS storage have \textbf{no supported, framework-native SDK} from app code to a running \textbf{Kubo} node.
+
+Ecosystem tooling targets Node.js, heavy browser bundles, or operators running Kubo directly. A mobile app cannot call \texttt{ipfs.add} like a server script. Today the developer must:
+
+\begin{enumerate}[leftmargin=*]
+  \item Wire low-level Kubo HTTP RPC (\texttt{kubo-rpc-client} or raw REST) by hand.
+  \item Patch mobile runtime gaps (missing \texttt{fetch} streams, \texttt{TextEncoder}, URL, crypto randomness on React Native).
+  \item Fix device-to-node networking (\texttt{127.0.0.1} fails on a physical phone; LAN IP, TLS, Android cleartext, iOS local-network permissions).
+  \item Reimplement health checks and multi-node failover in every app.
+  \item Build access control separately if the Kubo endpoint must not be public.
+\end{enumerate}
+
+Meshkit is proposed because this integration work is repeated per project and is not what app developers should rebuild.
+
+\section{What Developers Face Today}
+
+\begin{center}
+\small
+\begin{tabular}{@{}lp{8.8cm}@{}}
+\toprule
+\textbf{Approach today} & \textbf{Pain} \\
+\midrule
+\texttt{kubo-rpc-client} in an app & Assumes Node-like runtime; breaks on RN without shims \\
+Raw HTTP to \texttt{/api/v0/add}, \texttt{/cat}, \texttt{/pin} & No typed facade, shared errors, or failover \\
+Single public VPS Kubo URL & Single point of failure \\
+API key in app headers & Secret in binary; not per-user \\
+Skip IPFS on mobile & Centralized storage only \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+There is no first-party IPFS package for React Native, Flutter, or Capacitor that provides: init nodes, upload, retrieve, pin, failover, on device.
+
+\section{Framework-Specific Gaps}
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{2.4cm}p{4.2cm}p{6.2cm}@{}}
+\toprule
+\textbf{Framework} & \textbf{Missing today} & \textbf{Manual work} \\
+\midrule
+React Native & No maintained \texttt{@ipfs/*} RN SDK & Polyfills; LAN/VPS URL; Android cleartext / iOS local network \\
+Flutter & No standard Dart Kubo SDK & Custom HTTP client; multipart parsing; failover in app code \\
+Capacitor / Ionic & No Kubo storage plugin & WebView vs native bridge; wallet/RPC quirks \\
+Node.js & Low-level RPC only & No failover facade or token gate in one package \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Meshkit targets one API (\texttt{Meshkit.init}, \texttt{upload}, \texttt{retrieve}, \texttt{pin}, \ldots) with platform packages for RN polyfills and (proposed) Flutter and Capacitor.
+
+\section{Operational Gaps on Mobile}
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Node location:} Kubo runs on PC, LAN, or VPS—not in the app. SDK needs ordered nodes and failover.
+  \item \textbf{Health at init:} Fail fast when no node is reachable.
+  \item \textbf{Binary payloads:} Photos, PDFs, sensor data as bytes in; CID out.
+  \item \textbf{Batch uploads:} Gallery and document sets need a queued \texttt{bulkUpload}, not ad-hoc loops.
+\end{itemize}
+
+\section{Access Control and Onboarding}
+
+A working Kubo client is not enough if the RPC URL is shared:
+
+\begin{itemize}[leftmargin=*]
+  \item Public or leaked endpoints allow anonymous upload/retrieve.
+  \item No per-user entitlement without custom middleware.
+  \item No standard denied-user path (hold PPT, acquire on Uniswap V3).
+\end{itemize}
+
+Meshkit adds a PPT hold-to-use gate on Arbitrum and \texttt{TokenGateError} with exchange links in the same SDK.
+
+\section{Formal Statement}
+
+\begin{quote}
+Meshkit shall provide an SDK for IPFS storage (\texttt{upload}, \texttt{retrieve}, \texttt{pin}, \texttt{unpin}, \texttt{share}, bulk upload) against Kubo nodes with multi-node failover and first-class support for React Native, Flutter, and Capacitor, requiring wallets to hold a minimum PPT balance on Arbitrum before gated storage operations, and directing ineligible users to acquire PPT on Uniswap V3.
+\end{quote}
+
+\section{Stakeholders}
+
+\begin{center}
+\begin{tabular}{@{}p{3.2cm}p{9.8cm}@{}}
+\toprule
+\textbf{Party} & \textbf{Need} \\
+\midrule
+Mobile app developer & One SDK: Kubo + mobile runtimes + optional PPT gate \\
+End user & Storage in apps; clear way to qualify with PPT \\
+Park Pro ecosystem & PPT tied to concrete storage actions \\
+Node operator & Less abuse of open Kubo endpoints \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%==============================================================================
+\chapter{Goals, Constraints, and Non-Goals}
+%==============================================================================
+
+\section{Goals}
+
+\begin{description}[style=nextline, leftmargin=2.2cm]
+  \item[G1] Check PPT eligibility before any gated Kubo RPC call.
+  \item[G2] Fail closed if eligibility cannot be verified.
+  \item[G3] Configure gate at \texttt{init}; keep \texttt{upload}/\texttt{retrieve}/\texttt{pin}/\texttt{unpin} signatures stable.
+  \item[G4] Return actionable \texttt{TokenGateError} (balance, minimum, exchange links).
+  \item[G5] Ship with documentation aligned to this proposal.
+\end{description}
+
+\section{Constraints}
+
+Client-side gate in v1; Arbitrum only (\texttt{chainId} 42161); read-only \texttt{balanceOf}; dev bypass via \texttt{tokenGate.enabled: false}.
+
+\section{Non-Goals (v1)}
+
+Per-operation PPT burn; NFT gating; staking; in-process IPFS node; Kubo auth plugins; multi-chain PPT; wallet key custody inside Meshkit.
+
+%==============================================================================
+\chapter{Token-Gated Access Model}
+%==============================================================================
+
+\section{Rule}
+
+\begin{lstlisting}
+eligible(wallet) := balanceOf(PPT, wallet) >= minimumBalance
+\end{lstlisting}
+
+Hold-to-use: users keep PPT. Balance is read at operation time (optional cache, default 30s).
+
+\section{Gated Operations}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Operation} & \textbf{Gated} \\
+\midrule
+\texttt{upload}, \texttt{retrieve}, \texttt{pin}, \texttt{unpin}, \texttt{bulkUpload} & Yes \\
+\texttt{share}, \texttt{Meshkit.init} & No \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Decision Flow}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figs/Architectures (1).png}    \caption{Current System Architecture}
+    \label{fig:current-arch}
+\end{figure}
+
+
+PPT check always runs before Kubo on gated operations.
+
+%==============================================================================
+\chapter{Park Pro Token (PPT) Specification}
+%==============================================================================
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Field} & \textbf{Value} \\
+\midrule
+Name / Symbol & Park Pro Token / PPT \\
+Standard & ERC-20 (OpenZeppelin) \\
+Network & Arbitrum One (\texttt{42161}) \\
+Contract & \texttt{PPTToken} \texttt{[TBD: address]} \\
+Decimals & \texttt{18} \\
+Max supply & \texttt{1{,}000{,}000{,}000} PPT (\texttt{MAX\_SUPPLY = 1e9 $\times$ 1e18}) \\
+Minting & \texttt{mint(to, amount)} --- \textbf{onlyOwner} \\
+Owner & \texttt{Ownable}; multisig recommended in production \\
+Minimum balance (Meshkit) & \texttt{>0} \texttt{[TBD]} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{On-Chain Contract (\texttt{PPTToken})}
+
+PPT is a capped ERC-20. The constructor mints \texttt{initialSupply} (whole tokens) to the deployer. The owner may call \texttt{mint(to, amount)} to issue more whole tokens until \texttt{MAX\_SUPPLY} is reached; otherwise \texttt{MaxSupplyExceeded}.
+
+\begin{lstlisting}[language={}]
+uint256 public constant MAX_SUPPLY = 1e9 * 1e18;
+
+function mint(address to, uint256 amount) external onlyOwner {
+    uint256 mintAmount = amount * 1e18;
+    if (totalSupply() + mintAmount > MAX_SUPPLY) revert MaxSupplyExceeded();
+    _mint(to, mintAmount);
+}
+\end{lstlisting}
+
+Meshkit never calls \texttt{mint}; it only reads \texttt{balanceOf} for the gate.
+
+\section{Required Contract Calls (v1)}
+
+Only \textbf{view} functions are required for v1:
+
+\begin{lstlisting}[language={}]
+function balanceOf(address account) external view returns (uint256);
+function decimals() external view returns (uint8);
+function symbol() external view returns (string);
+\end{lstlisting}
+
+Meshkit may call \texttt{decimals()} once at init to format errors, or rely on configured decimals to avoid an extra RPC round-trip.
+
+\section{Minimum Balance}
+
+\begin{center}
+\begin{tabular}{@{}lp{9cm}@{}}
+\toprule
+\textbf{Parameter} & \textbf{Description} \\
+\midrule
+\texttt{minimumBalance} & Smallest \texttt{uint256} balance in base units required for access \\
+Default & \texttt{[TBD: e.g.\ 1 PPT = 10\textasciicircum 18 base units]} \\
+Override & App may set higher threshold; may not set lower than issuer policy if a canonical default is published \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Policy note:} Too low $\rightarrow$ spam; too high $\rightarrow$ onboarding friction. This is a product decision recorded in Open Decisions.
+
+\section{Tokenomics}
+
+PPT uses a \textbf{capped supply}: up to \textbf{1 billion PPT} on-chain. Circulating supply starts at \texttt{initialSupply} and can increase when the \textbf{owner} mints, until \texttt{MAX\_SUPPLY}. Meshkit does not mint or set monetary policy.
+
+\begin{center}
+\small
+\begin{tabular}{@{}llp{7.5cm}@{}}
+\toprule
+\textbf{Lever} & \textbf{Owner} & \textbf{Role} \\
+\midrule
+\texttt{MAX\_SUPPLY} & On-chain constant & Hard cap (1e9 PPT) \\
+\texttt{mint()} & Contract owner & Release tokens within cap \\
+\texttt{initialSupply} & Deploy parameter & Genesis circulation \\
+\texttt{minimumBalance} & Meshkit / issuer & PPT required per user \\
+Uniswap V3 & Issuer / LPs & User acquisition market \\
+Meshkit adoption & Product & Hold demand from storage gate \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Hold demand: each gated wallet must hold $\geq$ \texttt{minimumBalance}. Owner minting does not waive the per-wallet rule.
+
+\section{Uniswap V3 Pools (v1)}
+
+When balance is insufficient, users acquire PPT on \textbf{Uniswap V3 (Arbitrum)}. Meshkit surfaces deep links in \texttt{TokenGateError}; swaps run in the user's wallet.
+
+\begin{center}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Pool} & \textbf{Pair} & \textbf{Use case} & \textbf{Deep link} \\
+\midrule
+A & PPT / ARB & ARB ecosystem users & \texttt{uniswap.pptArb} \\
+B & PPT / USDC & Stablecoin entry & \texttt{uniswap.pptUsdc} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Pool addresses and fee tiers: \texttt{[TBD]}. \textbf{PPT/ARB} for native Arbitrum onboarding; \textbf{PPT/USDC} for stable reference pricing. Meshkit does not call Uniswap contracts.
+
+\section{Denied-User Flow}
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\linewidth]{figs/Sequence_Meshkit.png}
+  \caption{Denied-user acquisition and retry sequence}
+\end{figure}
+\section{Exchange Config}
+
+\texttt{tokenGate.exchange.primary} and \texttt{secondary} hold Uniswap deep links (PPT/USDC and PPT/ARB). Example shape:
+
+{\small\url{https://app.uniswap.org/swap?chain=arbitrum&inputCurrency=<ARB|USDC>&outputCurrency=<PPT_CONTRACT>}}
+
+%==============================================================================
+\chapter{System Architecture}
+%==============================================================================
+
+\begin{center}
+\includegraphics[width=\linewidth,height=0.58\textheight,keepaspectratio]{figs/System_architecture_meshkit.png}
+
+\vspace{0.35em}
+{\small\textbf{Figure:} System architecture}
+\end{center}
+
+\section{Layer Responsibilities}
+
+\begin{center}
+\begin{tabular}{@{}lp{9cm}@{}}
+\toprule
+\textbf{Layer} & \textbf{Role} \\
+\midrule
+Application & Wallet, chain switch, surface errors \\
+Meshkit facade & Public API; gate then failover \\
+Token gate & Chain check, balance read, cache \\
+Node pool & Ordered failover \\
+MeshkitClient & Kubo RPC \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Module Layout}
+
+\begin{lstlisting}
+packages/core/src/
+  meshkit.ts, create-client.ts, node-pool.ts, health.ts, types.ts
+  token-gate/  (index, balance, errors, format, types)
+\end{lstlisting}
+
+%==============================================================================
+\chapter{Detailed Component Design}
+%==============================================================================
+
+\section{TokenGateConfig}
+
+\begin{lstlisting}
+interface TokenGateConfig {
+  enabled: boolean;
+  contractAddress: `0x${string}`;
+  chainId: number;
+  walletAddress: `0x${string}`;
+  minimumBalance: bigint;
+  decimals?: number;
+  rpcUrl: string;
+  exchange: { primary: string; secondary: string };
+  balanceCacheTtlMs?: number;
+}
+\end{lstlisting}
+
+The app supplies \texttt{walletAddress}; Meshkit does not embed a wallet UI.
+
+\section{Token Gate Service}
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Method} & \textbf{Behavior} \\
+\midrule
+\texttt{assertEligible()} & Throw if below threshold; skip if disabled \\
+\texttt{getBalance()} & Current balance (may use cache) \\
+\texttt{invalidateCache()} & Force refresh after exchange purchase \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Meshkit Integration}
+
+Gated methods call \texttt{assertEligible()} then \texttt{withFailover(...)}. Gate is created in \texttt{Meshkit.init} when \texttt{tokenGate} is set.
+
+%==============================================================================
+\chapter{API Specification}
+%==============================================================================
+
+This chapter defines the public API and how \textbf{end users} experience storage through an app built on Meshkit. The app developer calls Meshkit; the user sees screens, buttons, and share sheets.
+
+\section{Initialization}
+
+\begin{lstlisting}
+interface MeshkitInitOptions {
+  nodes: string[];
+  headers?: Record<string, string>;
+  tokenGate?: TokenGateConfig;
+  share?: { defaultGateway?: string };
+}
+\end{lstlisting}
+
+\texttt{Meshkit.init} connects to Kubo and optionally configures the PPT gate. \textbf{No wallet required at init.} The user connects a wallet in the app UI before the first gated operation.
+
+\section{End-User Operations}
+
+\begin{center}
+\small
+\begin{tabular}{@{}p{2.2cm}p{4.5cm}p{6.8cm}@{}}
+\toprule
+\textbf{API} & \textbf{What the user does} & \textbf{What happens} \\
+\midrule
+\texttt{upload} & Picks a file or photo; taps ``Save to IPFS'' & Bytes go to Kubo; user gets a CID (content address) \\
+\texttt{retrieve} & Opens a link or enters a CID; taps ``View'' & File loads from IPFS and displays in the app \\
+\texttt{pin} & Taps ``Keep on node'' on saved content & Kubo retains the CID (not garbage-collected) \\
+\texttt{unpin} & Taps ``Remove from node'' in app settings & Kubo may drop the CID when GC runs \\
+\texttt{share} & Taps ``Share'' on a saved item & App opens OS share sheet with \texttt{ipfs://} and HTTPS gateway URL \\
+\texttt{bulkUpload} & Selects many files (e.g.\ gallery); sees progress list & Queue uploads files one-by-one or with limited concurrency; user gets CIDs as each finishes \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+All Kubo-mutating operations (\texttt{upload}, \texttt{retrieve}, \texttt{pin}, \texttt{unpin}, \texttt{bulkUpload}) run the PPT gate first when \texttt{tokenGate.enabled} is true. \texttt{share} only formats links from a CID the app already holds; it does not call Kubo.
+
+\section{upload}
+
+\begin{lstlisting}
+upload(data: Uint8Array, options?: { pin?: boolean }): Promise<string>
+\end{lstlisting}
+
+\textbf{User flow:} select file $\rightarrow$ confirm $\rightarrow$ loading indicator $\rightarrow$ success shows CID or ``Saved''.
+
+\textbf{Returns:} CID string (e.g.\ \texttt{bafy...}). App stores CID in local DB or shows copy button.
+
+\textbf{Optional:} \texttt{pin: true} calls \texttt{pin(cid)} immediately after upload so the file stays on the node.
+
+\section{retrieve}
+
+\begin{lstlisting}
+retrieve(cid: string): Promise<Uint8Array>
+\end{lstlisting}
+
+\textbf{User flow:} user opens a document, image, or invoice by CID $\rightarrow$ app fetches bytes $\rightarrow$ renders PDF/image/text.
+
+\textbf{Use cases:} view uploaded invoice, reload cached profile photo, verify file integrity by CID.
+
+\section{pin and unpin}
+
+\begin{lstlisting}
+pin(cid: string): Promise<void>
+unpin(cid: string): Promise<void>
+\end{lstlisting}
+
+\textbf{User flow (pin):} after upload, user taps ``Pin'' so their data survives Kubo garbage collection on that node.
+
+\textbf{User flow (unpin):} user removes content from the node's pin set (e.g.\ ``Delete from my storage''); the CID may still exist on the network if others pinned it.
+
+\section{share}
+
+\begin{lstlisting}
+interface ShareResult {
+  cid: string;
+  ipfsUri: string;      // ipfs://<cid>
+  gatewayUrl?: string;  // https://<gateway>/ipfs/<cid>
+}
+
+share(cid: string, options?: { gateway?: string }): ShareResult
+\end{lstlisting}
+
+\textbf{User flow:} user taps Share $\rightarrow$ app calls \texttt{share(cid)} $\rightarrow$ native share sheet (Messages, email, copy link).
+
+\textbf{Not gated:} no Kubo RPC; safe to call for any CID the app displays. Gateway URL uses \texttt{share.defaultGateway} from init or per-call override.
+
+\section{bulkUpload and Upload Queue}
+
+Bulk upload targets apps where users add \textbf{many files at once} (photo backup, document batch, IoT sensor dumps). Meshkit processes items through an internal \textbf{queue} with progress callbacks.
+
+\subsection{One-shot bulk API}
+
+\begin{lstlisting}
+interface BulkUploadItem {
+  id: string;
+  data: Uint8Array;
+  filename?: string;
+}
+
+interface BulkUploadResult {
+  id: string;
+  status: 'done' | 'failed';
+  cid?: string;
+  error?: Error;
+}
+
+bulkUpload(
+  items: BulkUploadItem[],
+  options?: BulkUploadOptions
+): Promise<BulkUploadResult[]>
+\end{lstlisting}
+
+\textbf{User flow:} user selects 20 photos $\rightarrow$ app shows list with per-file progress $\rightarrow$ each row gets a checkmark and CID or an error.
+
+Gate runs \textbf{before each item} (or once at queue start if balance is cached). If PPT runs out mid-queue, remaining items fail with \texttt{TokenGateError}.
+
+\subsection{Queue API (pause / resume)}
+
+\begin{lstlisting}
+interface BulkUploadOptions {
+  concurrency?: number;     // default 2
+  pinAfterUpload?: boolean; // default false
+  onProgress?: (item: BulkUploadProgress) => void;
+}
+
+interface BulkUploadProgress {
+  id: string;
+  status: 'pending' | 'uploading' | 'done' | 'failed';
+  cid?: string;
+  error?: Error;
+}
+
+createUploadQueue(options?: BulkUploadOptions): UploadQueue
+
+interface UploadQueue {
+  enqueue(...items: BulkUploadItem[]): void;
+  start(): Promise<void>;
+  pause(): void;
+  resume(): Promise<void>;
+  readonly results: ReadonlyArray<BulkUploadResult>;
+}
+\end{lstlisting}
+
+\textbf{User flow:} user starts batch upload $\rightarrow$ can tap Pause (network switch, low battery) $\rightarrow$ Resume continues pending items. \texttt{onProgress} drives a RecyclerView / ListView / Flutter \texttt{ListView.builder}.
+
+\textbf{Queue rules:}
+\begin{itemize}[leftmargin=*]
+  \item FIFO order per queue; \texttt{concurrency} caps parallel \texttt{ipfs.add} calls.
+  \item Failed item does not block the queue unless the app calls \texttt{pause}.
+  \item \texttt{TokenGateError} on an item marks that item failed; app may prompt user to buy PPT and call \texttt{invalidateCache()} before \texttt{resume}.
+\end{itemize}
+
+\section{Full Example}
+
+\begin{lstlisting}
+const mk = await Meshkit.init({
+  nodes: ['https://ipfs.example.com:5001'],
+  share: { defaultGateway: 'https://ipfs.io' },
+  tokenGate: {
+    enabled: true,
+    contractAddress: '0xd33f04ddbad7a65299311a7031c39e441d3d64c8',
+    chainId: 42161,
+    walletAddress: userWallet,
+    minimumBalance: 1n * 10n ** 18n,
+    rpcUrl: 'https://arb1.arbitrum.io/rpc',
+    exchange: { primary: '...', secondary: '...' },
+  },
+});
+
+// Single file
+const cid = await mk.upload(fileBytes, { pin: true });
+const links = mk.share(cid);
+await navigator.share({ url: links.gatewayUrl });
+
+// Batch
+const results = await mk.bulkUpload(
+  photos.map((p, i) => ({ id: String(i), data: p.bytes, filename: p.name })),
+  {
+    concurrency: 2,
+    pinAfterUpload: true,
+    onProgress: (ev) => ui.updateRow(ev.id, ev.status, ev.cid),
+  },
+);
+\end{lstlisting}
+
+\section{Dev Bypass}
+
+\texttt{tokenGate: \{ enabled: false \}} or omit \texttt{tokenGate} for local Kubo testing without a wallet.
+
+%==============================================================================
+\chapter{Current Progress}
+%==============================================================================
+
+Work completed or underway at the time of this proposal. Specific addresses, pool IDs, and audit reports will be filled in as they are finalized.
+
+\section{On-Chain (PPT)}
+
+\begin{center}
+\small
+\begin{tabular}{@{}llp{7.2cm}@{}}
+\toprule
+\textbf{Item} & \textbf{Status} & \textbf{Detail} \\
+\midrule
+PPT ERC-20 contract & Deployed & Arbitrum \textbf{testnet} \texttt{[TBD: address]} \\
+Uniswap V3 pools & In progress & PPT/ARB and PPT/USDC pool creation on testnet \texttt{[TBD]} \\
+Static analysis & In progress & ERC-20 review with \textbf{Aderyn} \texttt{[TBD: report link]} \\
+Mainnet launch & Planned & After testnet validation, audit remediation, and pool liquidity \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Application (Meshkit SDK)}
+
+\begin{center}
+\small
+\begin{tabular}{@{}llp{7.2cm}@{}}
+\toprule
+\textbf{Item} & \textbf{Status} & \textbf{Detail} \\
+\midrule
+\texttt{@ipfs-meshkit/core} & In progress & \texttt{init}, \texttt{upload}, \texttt{retrieve}, \texttt{pin}, node failover \\
+Token gate module & Planned & \texttt{balanceOf} check, \texttt{TokenGateError}, Uniswap links \\
+Extended API & Planned & \texttt{unpin}, \texttt{share}, \texttt{bulkUpload} queue \\
+Platform packages & Planned & React Native, Flutter, Capacitor \\
+Example app & Planned & Invoice upload demo with PPT gate \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Next Milestones}
+
+\begin{enumerate}[leftmargin=*]
+  \item Publish Aderyn audit summary and remediate findings on the ERC-20 contract.
+  \item Confirm Uniswap V3 testnet pools (PPT/ARB, PPT/USDC) and deep-link URLs for \texttt{TokenGateError}.
+  \item Ship token gate in core SDK; run testnet E2E (0 PPT $\rightarrow$ swap $\rightarrow$ upload).
+  \item Promote PPT and pools to Arbitrum mainnet when audit and liquidity criteria are met.
+\end{enumerate}
+
+%==============================================================================
+\chapter{Testing Strategy}
+%==============================================================================
+
+Testing spans the \textbf{PPT token} (contract, pools, audit) and the \textbf{Meshkit application} (SDK, gate, platforms). Goal: verify hold-to-use gating and IPFS operations on testnet before mainnet.
+
+\section{Token (PPT)}
+
+\begin{center}
+\small
+\begin{tabular}{@{}lp{9.5cm}@{}}
+\toprule
+\textbf{Layer} & \textbf{Scope} \\
+\midrule
+Static analysis & Aderyn scan on ERC-20; track high/medium findings to resolution before mainnet \\
+Contract unit tests & \texttt{MAX\_SUPPLY}, \texttt{initialSupply}, \texttt{mint} onlyOwner, \texttt{MaxSupplyExceeded}, \texttt{balanceOf} \\
+Testnet deployment & Deployed contract callable on Arbitrum testnet; address pinned in SDK config \\
+Uniswap V3 & Pool exists; test swap ARB/USDC $\rightarrow$ PPT; slippage and liquidity smoke test \\
+Economic smoke & Wallet below \texttt{minimumBalance} cannot pass gate; after swap, \texttt{balanceOf} reflects new balance \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Application (Meshkit)}
+
+\begin{center}
+\small
+\begin{tabular}{@{}lp{9.5cm}@{}}
+\toprule
+\textbf{Layer} & \textbf{Scope} \\
+\midrule
+Unit & Gate: balance $\geq$ / $<$ threshold; cache TTL; \texttt{enabled: false}; gate before mock Kubo on denial \\
+Unit & \texttt{bulkUpload}: queue order, concurrency cap, per-item gate, pause/resume \\
+Unit & \texttt{share}: correct \texttt{ipfs://} and gateway URL; no RPC side effects \\
+Integration & Mock Arbitrum RPC + mock Kubo; failover when gate passes; \texttt{TokenGateError} fields populated \\
+Integration & Bulk queue with mixed success/failure items \\
+Platform smoke & RN / Flutter / Capacitor: init, upload, error surfacing on one target device each \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{End-to-End (Manual)}
+
+\begin{enumerate}[leftmargin=*]
+  \item Wallet with 0 PPT on testnet $\rightarrow$ \texttt{TokenGateError} with Uniswap links.
+  \item Swap on testnet Uniswap $\rightarrow$ \texttt{invalidateCache()} $\rightarrow$ \texttt{upload} succeeds.
+  \item \texttt{retrieve} and \texttt{pin} on same CID; \texttt{share} opens valid gateway link.
+  \item \texttt{bulkUpload} of multiple files; pause and resume; one item fails without blocking queue.
+  \item Wrong chain $\rightarrow$ \texttt{WalletError}; all Kubo nodes down $\rightarrow$ \texttt{MeshkitError} after gate passes.
+\end{enumerate}
+
+\section{CI and Environments}
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{CI:} Kubo tests with \texttt{tokenGate.enabled: false}; gate unit tests use mocked RPC.
+  \item \textbf{Testnet:} PPT contract, Uniswap pools, and wallet funded with test ARB/USDC for E2E.
+  \item \textbf{Mainnet:} repeat E2E checklist after promotion; no CI secrets for real wallets.
+\end{itemize}
+
+%==============================================================================
+\chapter{References}
+%==============================================================================
+
+\begin{itemize}[leftmargin=*]
+  \item ERC-20 (EIP-20): \url{https://eips.ethereum.org/EIPS/eip-20}
+  \item Arbitrum One: chain ID \texttt{42161}
+  \item Aderyn (Solidity static analysis): \url{https://github.com/Cyfrin/aderyn}
+  \item IPFS Kubo documentation
+  \item Repository: \url{https://github.com/seetadev/IPFS-meshkit}
+\end{itemize}
+
+\end{document}
