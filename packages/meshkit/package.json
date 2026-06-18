@@ -1,0 +1,27 @@
+{
+  "name": "@ipfs-meshkit/meshkit",
+  "version": "1.0.0",
+  "description": "Universal IPFS Meshkit SDK — storage, local Kubo lifecycle, and platform adapters.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "license": "MIT",
+  "sideEffects": false,
+  "dependencies": {
+    "@ipfs-meshkit/core": "*",
+    "@ipfs-meshkit/node": "*"
+  }
+}

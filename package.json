@@ -5,7 +5,8 @@
   "description": "IPFS Meshkit is a SDK for building IPFS applications.",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "examples/*"
   ],
   "scripts": {
     "build": "tsc --build",
