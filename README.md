@@ -1,32 +1,29 @@
 # IPFS Meshkit
 
-IPFS Meshkit is an SDK for mobile frameworks like Flutter, Ionic, and React Native. It talks to a **running IPFS node** (Kubo) on the developer's PC, VPS, or LAN — data is stored on that node, not inside the app process.
+IPFS Meshkit is a universal SDK for decentralized storage on Node.js, React Native, Flutter, and Capacitor. Install **`@ipfs-meshkit/meshkit`** for the full experience — storage APIs, optional local Kubo startup, and failover — without wiring up Kubo RPC yourself.
 
 ## Typical use case
 
 A developer building an invoice app can:
 
 1. Store invoices in a local DB, **or**
-2. Upload them to decentralized storage via their IPFS node (`ipfs daemon` on PC or Kubo on a VPS)
+2. Upload them to decentralized storage via Meshkit (`upload`, `retrieve`, `pin`)
 
-Meshkit handles `upload`, `retrieve`, and `pin` against the node's RPC API.
+On Node.js, Meshkit can start a local Kubo daemon for you. On mobile, point at a Kubo node on your PC or VPS.
 
 ## Packages
 
 | Package | Description |
 |---------|-------------|
-| [`@ipfs-meshkit/core`](./packages/core) | TypeScript client for a Kubo RPC endpoint |
+| [`@ipfs-meshkit/meshkit`](./packages/meshkit) | **Primary entry** — storage + local Kubo lifecycle (Node.js) |
+| [`@ipfs-meshkit/core`](./packages/core) | Kubo RPC client with multi-node failover |
+| [`@ipfs-meshkit/node`](./packages/node) | Start/stop a local Kubo daemon (`startIPFSNode`) |
 | [`@ipfs-meshkit/capacitor`](./packages/capacitor) | Capacitor adapter for Ionic / hybrid apps |
 | [`@ipfs-meshkit/react-native`](./packages/react-native) | React Native adapter (re-exports core + polyfill entry) |
 
 ## Prerequisites
 
-A running IPFS (Kubo) node with its API reachable, e.g.:
-
-```bash
-ipfs daemon
-# API default: http://127.0.0.1:5001
-```
+Install [Kubo](https://docs.ipfs.tech/install/) (`ipfs` on your PATH). Meshkit can spawn the daemon on Node.js; mobile apps still need a reachable Kubo endpoint (LAN IP or VPS).
 
 ## Development
 
@@ -38,62 +35,70 @@ npm run build
 ## Usage
 
 ```bash
-npm install @ipfs-meshkit/core
+npm install @ipfs-meshkit/meshkit
 ```
 
-### Connecting to nodes
-
-`Meshkit.init` connects to one or more Kubo nodes. Pass the node URLs in
-priority order: the first is the primary, and the rest are used for failover.
-Each node is health-checked at startup, and unreachable nodes are dropped.
+### Node.js — automatic local Kubo
 
 ```typescript
 import { readFile, writeFile } from 'node:fs/promises';
-import { Meshkit } from '@ipfs-meshkit/core';
+import { init, stopIPFSNode } from '@ipfs-meshkit/meshkit';
 
-// Connect to one or more nodes (local daemon and/or VPS instances).
-const mk = await Meshkit.init({
+const { meshkit, localNode } = await init({ localNode: true });
+
+const pdf = await readFile('./invoice.pdf');
+const cid = await meshkit.upload(pdf);
+await meshkit.pin(cid);
+
+const retrieved = await meshkit.retrieve(cid);
+await writeFile('./invoice-copy.pdf', retrieved);
+
+if (localNode?.managed) {
+  await stopIPFSNode(localNode);
+}
+```
+
+### Node.js — server bootstrap
+
+```typescript
+import { startIPFSNode, stopIPFSNode, init } from '@ipfs-meshkit/meshkit';
+
+const kubo = await startIPFSNode();
+const { meshkit } = await init({ nodes: [kubo.url] });
+
+// ... your HTTP server ...
+
+process.on('SIGTERM', async () => {
+  if (kubo.managed) {
+    await stopIPFSNode(kubo);
+  }
+  process.exit(0);
+});
+```
+
+`startIPFSNode` reuses an existing daemon on `127.0.0.1:5001` when one is already healthy.
+
+### Remote nodes + failover
+
+```typescript
+import { init } from '@ipfs-meshkit/meshkit';
+
+const { meshkit } = await init({
+  localNode: true,
   nodes: [
-    'http://127.0.0.1:5001',
     'https://node2.yourinfra.com:5001',
     'https://node3.yourinfra.com:5001',
   ],
 });
 
-console.log('Active nodes:', mk.activeNodes);
-
-const pdf = await readFile('./invoice.pdf');
-const cid = await mk.upload(pdf);
-
-await mk.pin(cid);
-
-const retrieved = await mk.retrieve(cid);
-await writeFile('./invoice-copy.pdf', retrieved);
+console.log('Active nodes:', meshkit.activeNodes);
 ```
 
-### Failover behavior
-
-Each `upload`, `retrieve`, and `pin` call tries the nodes in priority order.
-The first node that succeeds returns the result; if a node fails (network error,
-timeout, or server error) the next node is tried. If every node fails, a
-`MeshkitError` is thrown that aggregates the individual failures.
-
-This removes the single point of failure: as long as one of your nodes is
-reachable, the operation succeeds.
-
-### Single node
-
-For local development you can pass a single node:
-
-```typescript
-const mk = await Meshkit.init({ nodes: ['http://127.0.0.1:5001'] });
-```
+Each `upload`, `retrieve`, and `pin` call tries nodes in priority order. If every node fails, a `MeshkitError` is thrown.
 
 ### Low-level client
 
-For advanced use against a single node, `createMeshkitClient` is still
-available and returns a client with the same `upload` / `retrieve` / `pin`
-methods (no failover):
+For a single node without failover, use `@ipfs-meshkit/core` directly:
 
 ```typescript
 import { createMeshkitClient } from '@ipfs-meshkit/core';
@@ -104,21 +109,16 @@ const cid = await client.upload(await readFile('./invoice.pdf'));
 
 ### React Native
 
-Install the adapter and polyfills in your app:
-
 ```bash
 npm install @ipfs-meshkit/react-native react-native-get-random-values \
   react-native-url-polyfill react-native-fetch-api web-streams-polyfill fast-text-encoding
 ```
-
-Load polyfills once at app entry (before any Meshkit import):
 
 ```typescript
 import '@ipfs-meshkit/react-native/polyfills';
 import { Meshkit } from '@ipfs-meshkit/react-native';
 
 const mk = await Meshkit.init({
-  // Use your machine's LAN IP or a VPS — not 127.0.0.1 on a physical device.
   nodes: ['http://192.168.1.42:5001'],
 });
 
