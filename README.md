@@ -1,6 +1,6 @@
-# IPFS Meshkit
+# IPFS Meshkit0
 
-IPFS Meshkit is a universal SDK for decentralized storage on Node.js, React Native, Flutter, and Capacitor. Install **`@ipfs-meshkit/meshkit`** for the full experience — storage APIs, optional local Kubo startup, and failover — without wiring up Kubo RPC yourself.
+IPFS Meshkit0 is a universal SDK for decentralized storage on Node.js, React Native, Flutter, and Capacitor. Install **`@ipfs-meshkit/meshkit`** for the full experience — storage APIs, optional local Kubo startup, and failover — without wiring up Kubo RPC yourself.
 
 ## Typical use case
 
