@@ -23,5 +23,8 @@
   "dependencies": {
     "@ipfs-meshkit/core": "*",
     "@ipfs-meshkit/node": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3"
   }
 }

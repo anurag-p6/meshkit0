@@ -9,7 +9,14 @@ export type {
   IPFSNodeHandle,
   StartIPFSNodeOptions,
 } from '@ipfs-meshkit/node';
-export { MeshkitNodeError, startIPFSNode, stopIPFSNode } from '@ipfs-meshkit/node';
+export {
+  DEFAULT_REPO,
+  MeshkitNodeError,
+  listPins,
+  resolveRepoPath,
+  startIPFSNode,
+  stopIPFSNode,
+} from '@ipfs-meshkit/node';
 
 export type {
   LocalNodeOption,
@@ -17,3 +24,6 @@ export type {
   MeshkitBootstrapResult,
 } from './init.js';
 export { init } from './init.js';
+
+export type { GracefulShutdownOptions } from './shutdown.js';
+export { setupGracefulShutdown } from './shutdown.js';
