@@ -1,0 +1,26 @@
+{
+  "name": "@ipfs-meshkit/node",
+  "version": "1.0.0",
+  "description": "Local Kubo lifecycle management for IPFS Meshkit on Node.js.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "license": "MIT",
+  "sideEffects": false,
+  "dependencies": {
+    "@ipfs-meshkit/core": "*"
+  }
+}
