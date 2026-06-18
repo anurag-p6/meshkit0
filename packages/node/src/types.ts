@@ -17,6 +17,12 @@ export interface StartIPFSNodeOptions {
   port?: number;
 
   /**
+   * Kubo HTTP gateway port. Defaults to `8080`.
+   * Set a unique port when running multiple local Kubo instances.
+   */
+  gatewayPort?: number;
+
+  /**
    * Filesystem path for the Kubo repo (`IPFS_PATH`).
    * When omitted, Kubo uses its default repo location.
    */
@@ -43,6 +49,12 @@ export interface StartIPFSNodeOptions {
 export interface IPFSNodeHandle {
   /** Kubo RPC API base URL, e.g. `http://127.0.0.1:5001`. */
   readonly url: string;
+
+  /**
+   * Absolute path to the Kubo repo (`IPFS_PATH`) when Meshkit spawned the daemon.
+   * Omitted when attaching to an existing daemon (`managed: false`).
+   */
+  readonly repo?: string;
 
   /**
    * `true` when Meshkit spawned this daemon; `false` when an existing daemon was reused.

@@ -1,9 +1,12 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { MeshkitNodeError, type IPFSNodeHandle, type StartIPFSNodeOptions } from './types.js';
 import { isKuboHealthy, waitForKubo } from './health.js';
+import { resolveRepoPath } from './repo.js';
+import { ensureRepoConfigured } from './repo-config.js';
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 5001;
+const DEFAULT_GATEWAY_PORT = 8080;
 const DEFAULT_READY_TIMEOUT_MS = 30_000;
 
 function buildApiUrl(host: string, port: number): string {
@@ -40,19 +43,9 @@ async function shutdownKubo(apiUrl: string): Promise<void> {
   }
 }
 
-function spawnKuboDaemon(
-  binary: string,
-  options: { repo?: string; init: boolean },
-): ChildProcess {
-  const args = ['daemon'];
-  if (options.init) {
-    args.push('--init');
-  }
-
-  const env = options.repo ? { ...process.env, IPFS_PATH: options.repo } : process.env;
-
-  return spawn(binary, args, {
-    env,
+function spawnKuboDaemon(binary: string, options: { repo: string }): ChildProcess {
+  return spawn(binary, ['daemon'], {
+    env: { ...process.env, IPFS_PATH: options.repo },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
@@ -91,7 +84,9 @@ export async function startIPFSNode(
   const init = options.init ?? true;
   const readyTimeoutMs = options.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS;
   const ipfsBinary = options.ipfsBinary ?? 'ipfs';
+  const gatewayPort = options.gatewayPort ?? DEFAULT_GATEWAY_PORT;
   const apiUrl = buildApiUrl(host, port);
+  const repo = resolveRepoPath(options.repo);
 
   if (await isKuboHealthy(apiUrl)) {
     return {
@@ -104,11 +99,9 @@ export async function startIPFSNode(
   }
 
   await assertIpfsBinary(ipfsBinary);
+  await ensureRepoConfigured(ipfsBinary, repo, host, port, gatewayPort, init);
 
-  const child = spawnKuboDaemon(ipfsBinary, {
-    ...(options.repo !== undefined ? { repo: options.repo } : {}),
-    init,
-  });
+  const child = spawnKuboDaemon(ipfsBinary, { repo });
 
   let startupError: Error | undefined;
 
@@ -137,6 +130,7 @@ export async function startIPFSNode(
 
   return {
     url: apiUrl,
+    repo,
     managed: true,
     async stop() {
       try {
