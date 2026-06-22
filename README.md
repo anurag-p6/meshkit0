@@ -2,6 +2,30 @@
 
 IPFS Meshkit0 is a universal SDK for decentralized storage on Node.js, React Native, Flutter, and Capacitor. Install **`@ipfs-meshkit/meshkit`** for Agentic and Web3 AI (ERC-8004) ecosystem with storage APIs, optional local Kubo startup, and failover, without wiring up Kubo RPC yourself.
 
+## Why Meshkit on Kubo?
+
+[Helia](https://github.com/ipfs/helia) embeds IPFS inside your app (Node.js or browser) as a JavaScript library. **IPFS Meshkit** takes a different approach: it is a TypeScript SDK on top of **Kubo** — you get `upload`, `retrieve`, and `pin` over Kubo’s HTTP RPC, with optional local daemon startup, failover, and platform adapters.
+
+We built Meshkit because apps like invoice backup need **Kubo’s persistence and pinning** without wiring up `kubo-rpc-client`, node lifecycle, repo migration, and mobile/browser integration by hand.
+
+| | **Helia** | **IPFS Meshkit (Kubo)** |
+|---|-----------|-------------------------|
+| **Model** | IPFS runs in-process in your app | App talks to a Kubo daemon via RPC |
+| **API** | Compose `@helia/unixfs`, blockstores, libp2p | `upload`, `retrieve`, `pin` out of the box |
+| **Persistence** | You choose and wire the datastore | Kubo repo on disk (default `./.ipfs`) |
+| **Networking** | App joins libp2p directly | Kubo handles swarm, DHT, bitswap |
+| **Node lifecycle** | Start/stop Helia in-process | `init({ localNode: true })`, graceful shutdown |
+| **Multi-node** | Roll your own retry logic | Built-in health checks and failover |
+| **Host migration** | Re-export blocks or re-provide CIDs | Copy `./.ipfs` + `listPins()` manifest |
+| **Web / mobile** | Large bundles, polyfills, in-browser P2P | Kubo on a server; app uses Meshkit HTTP API |
+
+```
+Your app  ──►  @ipfs-meshkit/meshkit  ──►  Kubo (./.ipfs)
+              upload · retrieve · pin       API :5001 · GW :8080
+```
+
+Meshkit keeps **Kubo as the engine** and gives applications a single SDK for storage, node management, and deployment across Node.js, Capacitor, and React Native.
+
 ## Typical use case
 
 A developer building an invoice app can:
