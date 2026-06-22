@@ -1,5 +1,5 @@
 import { Meshkit as CoreMeshkit } from '@ipfs-meshkit/core';
-import { startIPFSNode } from '@ipfs-meshkit/node';
+import { DEFAULT_REPO, startIPFSNode } from '@ipfs-meshkit/node';
 import type { StartIPFSNodeOptions, IPFSNodeHandle } from '@ipfs-meshkit/node';
 import type { Meshkit, MeshkitInitOptions } from '@ipfs-meshkit/core';
 import { MeshkitError } from '@ipfs-meshkit/core';
@@ -14,7 +14,7 @@ export interface MeshkitBootstrapOptions extends Omit<MeshkitInitOptions, 'nodes
 
   /**
    * Start or attach to a local Kubo daemon before connecting.
-   * When `true`, uses default local settings (`127.0.0.1:5001`).
+   * When `true`, uses `127.0.0.1:5001` and stores data in `./.ipfs`.
    */
   localNode?: LocalNodeOption;
 }
@@ -43,8 +43,10 @@ export async function init(
   const nodes = [...(options.nodes ?? [])];
 
   if (options.localNode) {
-    const nodeOptions =
-      typeof options.localNode === 'object' ? options.localNode : {};
+    const nodeOptions: StartIPFSNodeOptions =
+      typeof options.localNode === 'object'
+        ? { repo: DEFAULT_REPO, ...options.localNode }
+        : { repo: DEFAULT_REPO };
     localNode = await startIPFSNode(nodeOptions);
     if (!nodes.includes(localNode.url)) {
       nodes.unshift(localNode.url);

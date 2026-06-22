@@ -30,6 +30,7 @@ Install [Kubo](https://docs.ipfs.tech/install/) (`ipfs` on your PATH). Meshkit c
 ```bash
 npm install
 npm run build
+npm run test:persistence   # repo survive shutdown + restart
 ```
 
 ## Usage
@@ -40,40 +41,52 @@ npm install @ipfs-meshkit/meshkit
 
 ### Node.js — automatic local Kubo
 
+`localNode: true` stores pinned data in `./.ipfs` (relative to where you start the process). Add `.ipfs` to `.gitignore`.
+
 ```typescript
 import { readFile, writeFile } from 'node:fs/promises';
-import { init, stopIPFSNode } from '@ipfs-meshkit/meshkit';
+import { init, listPins, setupGracefulShutdown } from '@ipfs-meshkit/meshkit';
 
 const { meshkit, localNode } = await init({ localNode: true });
+
+setupGracefulShutdown(localNode); // Ctrl+C flushes Kubo; ./.ipfs stays on disk
 
 const pdf = await readFile('./invoice.pdf');
 const cid = await meshkit.upload(pdf);
 await meshkit.pin(cid);
 
+console.log('repo:', localNode?.repo);
+console.log('pins:', await listPins(meshkit.activeNodes[0]!));
+
 const retrieved = await meshkit.retrieve(cid);
 await writeFile('./invoice-copy.pdf', retrieved);
-
-if (localNode?.managed) {
-  await stopIPFSNode(localNode);
-}
 ```
+
+### Migrating servers (AWS → GCP)
+
+1. Stop the server gracefully (`setupGracefulShutdown` or `stopIPFSNode`)
+2. Copy the `./.ipfs` directory (tar, EBS snapshot, S3, etc.)
+3. Restore on the new host and start with the same repo path:
+
+```typescript
+const { meshkit, localNode } = await init({
+  localNode: { repo: './.ipfs', init: false },
+});
+```
+
+Use `listPins()` to export CIDs as a backup manifest for re-pinning.
 
 ### Node.js — server bootstrap
 
 ```typescript
-import { startIPFSNode, stopIPFSNode, init } from '@ipfs-meshkit/meshkit';
+import { init, setupGracefulShutdown } from '@ipfs-meshkit/meshkit';
 
-const kubo = await startIPFSNode();
-const { meshkit } = await init({ nodes: [kubo.url] });
-
-// ... your HTTP server ...
-
-process.on('SIGTERM', async () => {
-  if (kubo.managed) {
-    await stopIPFSNode(kubo);
-  }
-  process.exit(0);
+const { meshkit, localNode } = await init({ localNode: true });
+setupGracefulShutdown(localNode, {
+  onShutdown: async () => { /* close HTTP server, DB, etc. */ },
 });
+
+// ... app.listen(3000) ...
 ```
 
 `startIPFSNode` reuses an existing daemon on `127.0.0.1:5001` when one is already healthy.

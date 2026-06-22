@@ -10,7 +10,8 @@
   ],
   "scripts": {
     "build": "tsc --build",
-    "clean": "npm run clean --workspaces --if-present"
+    "clean": "npm run clean --workspaces --if-present",
+    "test:persistence": "npm run test:persistence --workspace=meshkit-dummy-app"
   },
   "repository": {
     "type": "git",
