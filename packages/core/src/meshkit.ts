@@ -1,7 +1,12 @@
 import { createMeshkitClient } from './create-client.js';
 import { filterHealthy } from './health.js';
-import { withFailover } from './node-pool.js';
+import { withFailover, withPrimary } from './node-pool.js';
 import { MeshkitError } from './types.js';
+import type {
+  IpnsKeyGenOptions,
+  IpnsPublishOptions,
+  IpnsResolveOptions,
+} from './ipns/types.js';
 import type {
   Meshkit as MeshkitFacade,
   MeshkitClient,
@@ -54,5 +59,33 @@ export class Meshkit implements MeshkitFacade {
 
   pin(cid: string): Promise<void> {
     return withFailover(this.clients, (client) => client.pin(cid));
+  }
+
+  publishName(value: string, options?: IpnsPublishOptions) {
+    return withPrimary(this.clients, (client) =>
+      client.publishName(value, options),
+    );
+  }
+
+  resolveName(name: string, options?: IpnsResolveOptions) {
+    return withFailover(this.clients, (client) =>
+      client.resolveName(name, options),
+    );
+  }
+
+  resolveAndRetrieve(name: string, options?: IpnsResolveOptions) {
+    return withFailover(this.clients, (client) =>
+      client.resolveAndRetrieve(name, options),
+    );
+  }
+
+  generateKey(name: string, options?: IpnsKeyGenOptions) {
+    return withPrimary(this.clients, (client) =>
+      client.generateKey(name, options),
+    );
+  }
+
+  listKeys() {
+    return withPrimary(this.clients, (client) => client.listKeys());
   }
 }

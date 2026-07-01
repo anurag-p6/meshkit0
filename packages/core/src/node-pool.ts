@@ -22,3 +22,25 @@ export async function withFailover<T>(
 
   throw new MeshkitError('All nodes failed', errors);
 }
+
+/**
+ * Run an operation against the primary (first) client only.
+ * Used for keystore-bound writes such as IPNS publish and key management.
+ */
+export async function withPrimary<T>(
+  clients: MeshkitClient[],
+  operation: (client: MeshkitClient) => Promise<T>,
+): Promise<T> {
+  const primary = clients[0];
+  if (!primary) {
+    throw new MeshkitError('No nodes available');
+  }
+
+  try {
+    return await operation(primary);
+  } catch (err) {
+    throw new MeshkitError('Primary node failed', [
+      err instanceof Error ? err : new Error(String(err)),
+    ]);
+  }
+}
