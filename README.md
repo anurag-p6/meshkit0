@@ -55,6 +55,7 @@ Install [Kubo](https://docs.ipfs.tech/install/) (`ipfs` on your PATH). Meshkit c
 npm install
 npm run build
 npm run test:persistence   # repo survive shutdown + restart
+npm run test:ipns          # IPNS publish, resolve, mutable update
 ```
 
 ## Usage
@@ -132,6 +133,55 @@ console.log('Active nodes:', meshkit.activeNodes);
 ```
 
 Each `upload`, `retrieve`, and `pin` call tries nodes in priority order. If every node fails, a `MeshkitError` is thrown.
+
+### IPNS (mutable names)
+
+Use a **CID** when you want a permanent link to one exact version of content. Use **IPNS** when you need a **stable name** that can be updated to point at a newer CID (e.g. latest invoice bundle).
+
+| | **CID** | **IPNS** |
+|---|---------|----------|
+| **Address** | `/ipfs/Qm...` | `/ipns/Qm...` |
+| **Mutability** | Immutable — new content = new CID | Mutable pointer — same name, new CID via `publishName` |
+| **Analogy** | Direct file hash | DNS record pointing at current content |
+| **Read access** | Public | Public (no key required to resolve) |
+| **Write access** | Anyone can add content; pinning is separate | Only the node holding the **private key** can publish updates |
+
+```typescript
+import { init, IPNS_TTL_FAST } from '@ipfs-meshkit/meshkit';
+
+const { meshkit } = await init({ localNode: true });
+
+// One-time: create a stable signing identity
+await meshkit.generateKey('invoice-latest');
+
+// Publish v1
+const cid1 = await meshkit.upload(invoiceV1);
+await meshkit.pin(cid1);
+const { name } = await meshkit.publishName(cid1, {
+  key: 'invoice-latest',
+  ttl: IPNS_TTL_FAST,
+});
+
+// Readers use the stable IPNS name (no key required)
+const bytes = await meshkit.resolveAndRetrieve(`/ipns/${name}`);
+
+// Update to v2 — same IPNS name, new CID
+const cid2 = await meshkit.upload(invoiceV2);
+await meshkit.pin(cid2);
+await meshkit.publishName(cid2, { key: 'invoice-latest', ttl: IPNS_TTL_FAST });
+
+// Verify latest (nocache bypasses local cache after publish)
+const path = await meshkit.resolveName(`/ipns/${name}`, { nocache: true });
+```
+
+Gateway URL for browsers: `http://127.0.0.1:8080/ipns/${name}`.
+
+**Operator notes:**
+
+- `publishName` does **not** pin — always `pin(cid)` for content you publish.
+- IPNS keys live in `./.ipfs/keystore` — copy the repo to migrate names (same as pins).
+- **`ttl`** is a cache hint (upper bound on stale reads for cached resolvers), not a fixed global propagation delay. After updating a CID, expect eventual consistency (seconds to a few minutes).
+- **Multi-node:** `publishName`, `generateKey`, and `listKeys` use the **primary node** (`activeNodes[0]`). `resolveName` and `resolveAndRetrieve` failover across healthy nodes.
 
 ### Low-level client
 
