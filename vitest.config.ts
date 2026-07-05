@@ -1,9 +1,23 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
+const root = path.dirname(fileURLToPath(import.meta.url));
+
+const workspaceAliases = {
+  '@ipfs-meshkit/core': path.join(root, 'packages/core/src/index.ts'),
+  '@ipfs-meshkit/node': path.join(root, 'packages/node/src/index.ts'),
+  '@ipfs-meshkit/meshkit': path.join(root, 'packages/meshkit/src/index.ts'),
+};
+
 export default defineConfig({
+  resolve: {
+    alias: workspaceAliases,
+  },
   test: {
     projects: [
       {
+        extends: true,
         test: {
           name: 'unit',
           include: ['packages/*/test/**/*.test.ts'],
@@ -13,6 +27,7 @@ export default defineConfig({
         },
       },
       {
+        extends: true,
         test: {
           name: 'integration',
           include: ['tests/integration/**/*.test.ts'],
