@@ -22,6 +22,11 @@ export async function listPins(apiUrl: string): Promise<string[]> {
   }
 
   const body = await response.text();
+  return parsePinLsResponse(body);
+}
+
+/** Parse newline-delimited JSON from Kubo `pin ls` stream output. */
+export function parsePinLsResponse(body: string): string[] {
   const cids = new Set<string>();
 
   for (const line of body.split('\n')) {
