@@ -1,3 +1,20 @@
+import type {
+  IpnsKey,
+  IpnsKeyGenOptions,
+  IpnsPublishOptions,
+  IpnsPublishResult,
+  IpnsResolveOptions,
+} from './ipns/types.js';
+
+export type {
+  IpnsDuration,
+  IpnsKey,
+  IpnsKeyGenOptions,
+  IpnsPublishOptions,
+  IpnsPublishResult,
+  IpnsResolveOptions,
+} from './ipns/types.js';
+
 export class MeshkitError extends Error {
   /** The individual errors collected from each node that was tried. */
   readonly causes: Error[];
@@ -32,6 +49,38 @@ export interface MeshkitClient {
   /** Pin a CID on the connected IPFS node so it is not garbage-collected. */
   pin(cid: string): Promise<void>;
 
+  /**
+   * Publish an IPNS record pointing at a CID or `/ipfs/...` path.
+   * Requires the node's private key (see `generateKey`). Does not pin content.
+   */
+  publishName(
+    value: string,
+    options?: IpnsPublishOptions,
+  ): Promise<IpnsPublishResult>;
+
+  /**
+   * Resolve an IPNS name to a fully resolved `/ipfs/...` path.
+   * No private key required — resolution is public.
+   */
+  resolveName(name: string, options?: IpnsResolveOptions): Promise<string>;
+
+  /**
+   * Resolve an IPNS name and retrieve the content bytes.
+   * Composes `resolveName` then `retrieve`.
+   */
+  resolveAndRetrieve(
+    name: string,
+    options?: IpnsResolveOptions,
+  ): Promise<Uint8Array>;
+
+  /**
+   * Create a named signing key in the node's keystore for stable IPNS names.
+   */
+  generateKey(name: string, options?: IpnsKeyGenOptions): Promise<IpnsKey>;
+
+  /** List keys in the node's keystore (includes `"self"`). */
+  listKeys(): Promise<IpnsKey[]>;
+
   /** Confirm the node's RPC API is reachable. Throws if it is not. */
   healthCheck(): Promise<void>;
 }
@@ -57,6 +106,35 @@ export interface Meshkit {
 
   /** Pin a CID, trying each healthy node in priority order. */
   pin(cid: string): Promise<void>;
+
+  /**
+   * Publish an IPNS record on the primary node (owns the keystore).
+   */
+  publishName(
+    value: string,
+    options?: IpnsPublishOptions,
+  ): Promise<IpnsPublishResult>;
+
+  /**
+   * Resolve an IPNS name, trying each healthy node in priority order.
+   */
+  resolveName(name: string, options?: IpnsResolveOptions): Promise<string>;
+
+  /**
+   * Resolve an IPNS name and retrieve bytes, with failover across healthy nodes.
+   */
+  resolveAndRetrieve(
+    name: string,
+    options?: IpnsResolveOptions,
+  ): Promise<Uint8Array>;
+
+  /**
+   * Create a named signing key on the primary node.
+   */
+  generateKey(name: string, options?: IpnsKeyGenOptions): Promise<IpnsKey>;
+
+  /** List keys on the primary node's keystore. */
+  listKeys(): Promise<IpnsKey[]>;
 
   /** Nodes that passed the health check at init, in priority order. */
   readonly activeNodes: readonly string[];

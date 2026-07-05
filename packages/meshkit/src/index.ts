@@ -2,8 +2,23 @@ export type {
   MeshkitClient,
   MeshkitConfig,
   MeshkitInitOptions,
+  IpnsDuration,
+  IpnsKey,
+  IpnsKeyGenOptions,
+  IpnsPublishOptions,
+  IpnsPublishResult,
+  IpnsResolveOptions,
 } from '@ipfs-meshkit/core';
-export { MeshkitError, Meshkit, createMeshkitClient } from '@ipfs-meshkit/core';
+export {
+  MeshkitError,
+  Meshkit,
+  createMeshkitClient,
+  IPNS_TTL_DEFAULT,
+  IPNS_TTL_FAST,
+  extractCidFromPath,
+  toIpfsPath,
+  toIpnsPath,
+} from '@ipfs-meshkit/core';
 
 export type {
   IPFSNodeHandle,

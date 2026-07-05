@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test:persistence": "node --experimental-strip-types test-persistence.ts"
+    "test:persistence": "node --experimental-strip-types test-persistence.ts",
+    "test:ipns": "node --experimental-strip-types test-ipns.ts"
   },
   "dependencies": {
     "@ipfs-meshkit/meshkit": "*"
