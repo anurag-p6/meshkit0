@@ -54,9 +54,12 @@ Install [Kubo](https://docs.ipfs.tech/install/) (`ipfs` on your PATH). Meshkit c
 ```bash
 npm install
 npm run build
-npm run test:persistence   # repo survive shutdown + restart
-npm run test:ipns          # IPNS publish, resolve, mutable update
+npm test                  # unit tests (no Kubo)
+npm run test:integration  # build + E2E (requires Kubo)
+npm run test:all          # full suite
 ```
+
+See [docs/Testing.md](./docs/Testing.md).
 
 ## Usage
 
