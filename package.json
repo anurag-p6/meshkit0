@@ -11,8 +11,13 @@
   "scripts": {
     "build": "tsc --build",
     "clean": "npm run clean --workspaces --if-present",
-    "test:persistence": "npm run test:persistence --workspace=meshkit-dummy-app",
-    "test:ipns": "npm run test:ipns --workspace=meshkit-dummy-app"
+    "test": "npm run test:unit",
+    "test:unit": "vitest run --project unit",
+    "test:unit:watch": "vitest --project unit",
+    "test:unit:coverage": "vitest run --project unit --coverage",
+    "test:integration": "npm run build && vitest run --project integration",
+    "test:all": "npm run build && vitest run",
+    "test:ci": "npm run test:unit:coverage"
   },
   "repository": {
     "type": "git",
@@ -32,7 +37,10 @@
   },
   "homepage": "https://github.com/seetadev/IPFS-meshkit#readme",
   "devDependencies": {
+    "@ipfs-meshkit/meshkit": "*",
     "@types/node": "^25.9.3",
-    "typescript": "^6.0.3"
+    "@vitest/coverage-v8": "^3.2.4",
+    "typescript": "^6.0.3",
+    "vitest": "^3.2.4"
   }
 }
