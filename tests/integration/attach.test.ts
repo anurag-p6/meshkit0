@@ -5,7 +5,7 @@ import {
   init,
   resolveRepoPath,
   type IPFSNodeHandle,
-} from '@ipfs-meshkit/meshkit';
+} from 'ipfs-meshkit';
 import { hasKubo, removeDir, stopManagedNode } from './helpers.js';
 
 const testDir = dirname(fileURLToPath(import.meta.url));

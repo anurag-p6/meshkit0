@@ -1,21 +1,10 @@
 {
   "name": "@ipfs-meshkit/core",
   "version": "1.0.0",
-  "description": "Core TypeScript SDK for IPFS Meshkit.",
+  "private": true,
+  "description": "Core TypeScript SDK for IPFS Meshkit (bundled into root ipfs-meshkit).",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist"
-  ],
   "scripts": {
-    "build": "tsc",
     "clean": "rm -rf dist"
   },
   "license": "MIT",

@@ -1,6 +1,7 @@
 {
   "name": "@ipfs-meshkit/react-native",
   "version": "1.0.0",
+  "private": true,
   "description": "React Native adapter for IPFS Meshkit. Re-exports @ipfs-meshkit/core with optional polyfill entry.",
   "type": "module",
   "main": "./dist/index.js",

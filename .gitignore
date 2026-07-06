@@ -3,6 +3,7 @@ dist
 *.tsbuildinfo
 *.tgz
 coverage
+.pack-check
 
 # Kubo repos (local dev + integration tests)
 .ipfs

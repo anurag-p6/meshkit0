@@ -1,7 +1,7 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { init, resolveRepoPath } from '@ipfs-meshkit/meshkit';
+import { init, resolveRepoPath } from 'ipfs-meshkit';
 import { hasKubo, removeDir } from './helpers.js';
 
 const testDir = dirname(fileURLToPath(import.meta.url));
