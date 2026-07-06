@@ -1,9 +1,9 @@
 import { execSync } from 'node:child_process';
 import { access, rm } from 'node:fs/promises';
-import type { IPFSNodeHandle } from '@ipfs-meshkit/node';
 import {
   extractCidFromPath,
   stopIPFSNode,
+  type IPFSNodeHandle,
   type Meshkit,
 } from '@ipfs-meshkit/meshkit';
 

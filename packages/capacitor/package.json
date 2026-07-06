@@ -1,6 +1,7 @@
 {
   "name": "@ipfs-meshkit/capacitor",
   "version": "1.0.0",
+  "private": true,
   "description": "Capacitor adapter for IPFS Meshkit (Ionic and hybrid mobile apps).",
   "type": "module",
   "main": "./dist/index.js",
