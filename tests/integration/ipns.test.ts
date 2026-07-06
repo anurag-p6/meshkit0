@@ -8,7 +8,7 @@ import {
   listPins,
   resolveRepoPath,
   type IPFSNodeHandle,
-} from 'ipfs-meshkit';
+} from '@ipfs-meshkit/meshkit';
 import {
   hasKubo,
   removeDir,

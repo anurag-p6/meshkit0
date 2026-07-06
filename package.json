@@ -1,6 +1,6 @@
 {
-  "name": "ipfs-meshkit",
-  "version": "1.0.0",
+  "name": "@ipfs-meshkit/meshkit",
+  "version": "1.0.1",
   "description": "Node.js SDK for Kubo/IPFS — upload, pin, IPNS, local daemon, and multi-node failover.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -42,7 +42,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/seetadev/IPFS-meshkit.git"
+    "url": "git+https://github.com/IPFS-Meshkit/meshkit0.git"
   },
   "keywords": [
     "ipfs",
@@ -65,9 +65,9 @@
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/seetadev/IPFS-meshkit/issues"
+    "url": "https://github.com/IPFS-Meshkit/meshkit0/issues"
   },
-  "homepage": "https://github.com/seetadev/IPFS-meshkit#readme",
+  "homepage": "https://github.com/IPFS-Meshkit/meshkit0#readme",
   "sideEffects": false,
   "engines": {
     "node": ">=20"

@@ -1,11 +1,18 @@
 # Changelog
 
+## 1.0.1 — 2026-07-06
+
+### Fixed
+
+- README and package metadata: correct repository links to [IPFS-Meshkit/meshkit0](https://github.com/IPFS-Meshkit/meshkit0)
+- Expanded README with install, usage examples, API overview, and CommonJS support
+
 ## 1.0.0 — 2026-06-18
 
 ### Added
 
-- **`ipfs-meshkit` v1.0.0** — single npm package with root `dist/` (ESM + CJS + TypeScript)
-- Bundles core, node, and meshkit into one install — `npm install ipfs-meshkit`
+- **`@ipfs-meshkit/meshkit` v1.0.0** — single npm package with root `dist/` (ESM + CJS + TypeScript)
+- Bundles core, node, and meshkit into one install — `npm install @ipfs-meshkit/meshkit`
 - Portable `./.ipfs` repo for server migration
 - Unit test suite with coverage; integration tests for persistence, IPNS, attach (local, requires Kubo)
 

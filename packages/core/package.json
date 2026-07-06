@@ -2,7 +2,7 @@
   "name": "@ipfs-meshkit/core",
   "version": "1.0.0",
   "private": true,
-  "description": "Core TypeScript SDK for IPFS Meshkit (bundled into root ipfs-meshkit).",
+  "description": "Core TypeScript SDK for IPFS Meshkit (bundled into root @ipfs-meshkit/meshkit).",
   "type": "module",
   "scripts": {
     "clean": "rm -rf dist"

@@ -7,7 +7,7 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 const workspaceAliases = {
   '@ipfs-meshkit/core': path.join(root, 'packages/core/src/index.ts'),
   '@ipfs-meshkit/node': path.join(root, 'packages/node/src/index.ts'),
-  'ipfs-meshkit': path.join(root, 'packages/meshkit/src/index.ts'),
+  '@ipfs-meshkit/meshkit': path.join(root, 'packages/meshkit/src/index.ts'),
 };
 
 export default defineConfig({

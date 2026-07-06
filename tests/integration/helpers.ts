@@ -5,7 +5,7 @@ import {
   stopIPFSNode,
   type IPFSNodeHandle,
   type Meshkit,
-} from 'ipfs-meshkit';
+} from '@ipfs-meshkit/meshkit';
 
 export function hasKubo(): boolean {
   if (process.env.SKIP_INTEGRATION === '1') {

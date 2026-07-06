@@ -2,7 +2,7 @@
   "name": "@ipfs-meshkit/node",
   "version": "1.0.0",
   "private": true,
-  "description": "Local Kubo lifecycle for IPFS Meshkit (bundled into root ipfs-meshkit).",
+  "description": "Local Kubo lifecycle for IPFS Meshkit (bundled into root @ipfs-meshkit/meshkit).",
   "type": "module",
   "scripts": {
     "clean": "rm -rf dist"
