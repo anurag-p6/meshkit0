@@ -1,4 +1,4 @@
-# IPFS Meshkit
+# IPFS Meshkit0
 
 **@ipfs-meshkit/meshkit** is a Node.js SDK for [Kubo](https://docs.ipfs.tech/) (IPFS). Upload, retrieve, and pin content over Kubo’s HTTP RPC, with optional local daemon startup, IPNS, and multi-node failover.
 
