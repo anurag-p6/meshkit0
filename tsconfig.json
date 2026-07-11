@@ -4,6 +4,7 @@
     { "path": "./packages/core" },
     { "path": "./packages/node" },
     { "path": "./packages/meshkit" },
+    { "path": "./packages/mcp" },
     { "path": "./packages/capacitor" },
     { "path": "./packages/react-native" }
   ]

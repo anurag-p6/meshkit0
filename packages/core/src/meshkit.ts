@@ -88,4 +88,8 @@ export class Meshkit implements MeshkitFacade {
   listKeys() {
     return withPrimary(this.clients, (client) => client.listKeys());
   }
+
+  listPins() {
+    return withPrimary(this.clients, (client) => client.listPins());
+  }
 }

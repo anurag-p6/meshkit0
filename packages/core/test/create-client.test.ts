@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const ipfs = {
   add: vi.fn(),
   cat: vi.fn(),
-  pin: { add: vi.fn() },
+  pin: { add: vi.fn(), ls: vi.fn() },
   id: vi.fn(),
   name: {
     publish: vi.fn(),
@@ -113,6 +113,24 @@ describe('createMeshkitClient', () => {
       name: 'docs',
     });
     await expect(client.listKeys()).resolves.toEqual([{ id: 'k51Self', name: 'self' }]);
+  });
+
+  it('listPins collects streamed pin ls results', async () => {
+    async function* pins() {
+      yield {
+        cid: { toString: () => 'QmA' },
+        type: 'recursive',
+      };
+      yield {
+        cid: { toString: () => 'QmB' },
+        type: 'recursive',
+      };
+    }
+    ipfs.pin.ls.mockReturnValue(pins());
+
+    const client = createMeshkitClient({ apiUrl: 'http://127.0.0.1:5001' });
+    await expect(client.listPins()).resolves.toEqual(['QmA', 'QmB']);
+    expect(ipfs.pin.ls).toHaveBeenCalledWith({ type: 'all' });
   });
 
   it('healthCheck calls ipfs.id()', async () => {

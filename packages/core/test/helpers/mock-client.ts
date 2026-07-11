@@ -15,6 +15,7 @@ export function createMockClient(
     resolveAndRetrieve: async () => new Uint8Array(),
     generateKey: async () => ({ name: 'self', id: 'QmSelf' }),
     listKeys: async () => [{ name: 'self', id: 'QmSelf' }],
+    listPins: async () => [],
     healthCheck: async () => undefined,
     ...overrides,
   };

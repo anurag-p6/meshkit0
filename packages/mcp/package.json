@@ -1,0 +1,49 @@
+{
+  "name": "@ipfs-meshkit/mcp",
+  "version": "1.0.0",
+  "description": "MCP server for IPFS Meshkit — upload, pin, retrieve, and IPNS tools for AI agents.",
+  "type": "module",
+  "bin": {
+    "meshkit-mcp": "./dist/main.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IPFS-Meshkit/meshkit0.git",
+    "directory": "packages/mcp"
+  },
+  "keywords": [
+    "ipfs",
+    "kubo",
+    "meshkit",
+    "mcp",
+    "model-context-protocol",
+    "ai"
+  ],
+  "author": "IPFS Meshkit Contributors",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@ipfs-meshkit/meshkit": "1.0.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "tsup": "^8.5.0",
+    "typescript": "^6.0.3"
+  }
+}
