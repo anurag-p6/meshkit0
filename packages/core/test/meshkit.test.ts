@@ -222,4 +222,27 @@ describe('Meshkit operations', () => {
     expect(secondaryGenerate).not.toHaveBeenCalled();
     expect(secondaryList).not.toHaveBeenCalled();
   });
+
+  it('listPins uses primary node only', async () => {
+    const listPins = vi.fn(async () => ['QmA', 'QmB']);
+    const secondaryListPins = vi.fn();
+
+    vi.spyOn(health, 'filterHealthy').mockResolvedValue({
+      clients: [
+        createMockClient({ listPins }),
+        createMockClient({ listPins: secondaryListPins }),
+      ],
+      urls: ['http://primary:5001', 'http://secondary:5001'],
+      failed: [],
+    });
+
+    const mk = await Meshkit.init({
+      nodes: ['http://primary:5001', 'http://secondary:5001'],
+    });
+
+    await expect(mk.listPins()).resolves.toEqual(['QmA', 'QmB']);
+
+    expect(listPins).toHaveBeenCalledOnce();
+    expect(secondaryListPins).not.toHaveBeenCalled();
+  });
 });

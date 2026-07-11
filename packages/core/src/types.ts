@@ -81,6 +81,9 @@ export interface MeshkitClient {
   /** List keys in the node's keystore (includes `"self"`). */
   listKeys(): Promise<IpnsKey[]>;
 
+  /** List all pinned CIDs on the connected node. */
+  listPins(): Promise<string[]>;
+
   /** Confirm the node's RPC API is reachable. Throws if it is not. */
   healthCheck(): Promise<void>;
 }
@@ -135,6 +138,9 @@ export interface Meshkit {
 
   /** List keys on the primary node's keystore. */
   listKeys(): Promise<IpnsKey[]>;
+
+  /** List all pinned CIDs on the primary node. */
+  listPins(): Promise<string[]>;
 
   /** Nodes that passed the health check at init, in priority order. */
   readonly activeNodes: readonly string[];
