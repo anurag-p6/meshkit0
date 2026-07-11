@@ -8,7 +8,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsup",
@@ -20,6 +21,10 @@
     "url": "git+https://github.com/IPFS-Meshkit/meshkit0.git",
     "directory": "packages/mcp"
   },
+  "bugs": {
+    "url": "https://github.com/IPFS-Meshkit/meshkit0/issues"
+  },
+  "homepage": "https://github.com/IPFS-Meshkit/meshkit0#readme",
   "keywords": [
     "ipfs",
     "kubo",
@@ -37,7 +42,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@ipfs-meshkit/meshkit": "1.0.1",
+    "@ipfs-meshkit/meshkit": "1.0.2",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^3.25.76"
   },

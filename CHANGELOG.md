@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.2 — 2026-07-11
+
+### Added
+
+- `Meshkit.listPins()` and `MeshkitClient.listPins()` — list pinned CIDs on the primary node via `kubo-rpc-client` (respects RPC auth headers)
+
+### Notes
+
+- Publish `@ipfs-meshkit/meshkit@1.0.2` before `@ipfs-meshkit/mcp@1.0.0`; MCP depends on `meshkit.listPins()`.
+
 ## 1.0.1 — 2026-07-06
 
 ### Fixed

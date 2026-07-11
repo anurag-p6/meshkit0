@@ -5,7 +5,10 @@ MCP (Model Context Protocol) server for [IPFS Meshkit](https://github.com/IPFS-M
 ## Prerequisites
 
 - **Node.js 20+**
+- **`@ipfs-meshkit/meshkit` ≥ 1.0.2** (installed automatically as a dependency)
 - A running [Kubo](https://docs.ipfs.tech/install/) node with RPC API reachable (default: `http://127.0.0.1:5001`), **or** set `MESHKIT_LOCAL_NODE=true` to start/attach to Kubo automatically (requires `ipfs` on `PATH`)
+
+> **Publish order:** release `@ipfs-meshkit/meshkit@1.0.2` before `@ipfs-meshkit/mcp@1.0.0`. MCP uses `meshkit.listPins()`, added in meshkit 1.0.2.
 
 ## Quick start
 

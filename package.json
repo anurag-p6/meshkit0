@@ -1,6 +1,6 @@
 {
   "name": "@ipfs-meshkit/meshkit",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Node.js SDK for Kubo/IPFS — upload, pin, IPNS, local daemon, and multi-node failover.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -31,6 +31,8 @@
   "scripts": {
     "build": "tsup",
     "build:mcp": "npm run build && npm run build -w @ipfs-meshkit/mcp",
+    "publish:meshkit": "npm run build && npm publish",
+    "publish:mcp": "npm run build:mcp && npm publish -w @ipfs-meshkit/mcp",
     "clean": "rm -rf dist && npm run clean --workspaces --if-present && find packages -name 'tsconfig.tsbuildinfo' -delete 2>/dev/null || true",
     "prepublishOnly": "npm run build",
     "test": "npm run test:unit",
