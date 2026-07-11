@@ -100,6 +100,14 @@ export function createMeshkitClient(config: MeshkitConfig): MeshkitClient {
       return keys.map((key) => ({ id: key.id, name: key.name }));
     },
 
+    async listPins(): Promise<string[]> {
+      const cids = new Set<string>();
+      for await (const { cid } of ipfs.pin.ls({ type: 'all' })) {
+        cids.add(cid.toString());
+      }
+      return [...cids];
+    },
+
     async healthCheck(): Promise<void> {
       await ipfs.id();
     },
