@@ -77,8 +77,8 @@ import { createS3Client } from '@ipfs-meshkit/meshkit';
 const client = createS3Client({
   accessKeyId: process.env.STORAGE_KEY!,
   secretAccessKey: process.env.STORAGE_SECRET!,
-  bucket: 'my-invoices',
-  endpoint: 'https://eu-west-1.s3.fil.one', // or any S3-compatible URL
+  bucket: 'my-bucket',
+  endpoint: 'https://<your-s3-compatible-endpoint>', // fil.one, Lighthouse, Filebase, 4EVERLAND, …
 });
 
 // Upload — CID is computed locally from the raw bytes

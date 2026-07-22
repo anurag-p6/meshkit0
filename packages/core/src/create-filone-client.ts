@@ -49,34 +49,25 @@ async function computeCid(data: Uint8Array): Promise<string> {
 const NOT_SUPPORTED = (op: string) => (): Promise<never> =>
   Promise.reject(
     new MeshkitError(
-      `${op} is not supported on S3-compatible backends — fil.one is an object store with no IPFS keystore or pinning layer`,
+      `${op} is not supported on S3-compatible backends — object stores have no IPFS keystore or pinning layer`,
     ),
   );
 
 /**
  * Create a MeshkitClient backed by any S3-compatible object store
- * (fil.one, Lighthouse, Filebase, 4EVERLAND, etc.) instead of a Kubo node.
+ * (fil.one, Lighthouse, Filebase, 4EVERLAND, Akave, ChainSafe, …)
+ * instead of a Kubo node.
  *
  * Files are stored at <endpoint>/<bucket>/<cidv1> where the CID is computed
  * locally from the raw bytes — no IPFS daemon required.
  *
- * @example fil.one
+ * @example
  * ```ts
  * const client = createS3Client({
- *   accessKeyId: process.env.FIL_ACCESS_KEY!,
- *   secretAccessKey: process.env.FIL_SECRET_KEY!,
- *   bucket: 'my-invoices',
- *   endpoint: 'https://eu-west-1.s3.fil.one',
- * });
- * ```
- *
- * @example Lighthouse
- * ```ts
- * const client = createS3Client({
- *   accessKeyId: process.env.LH_ACCESS_KEY!,
- *   secretAccessKey: process.env.LH_SECRET_KEY!,
- *   bucket: 'my-invoices',
- *   endpoint: 'https://gateway.lighthouse.storage',
+ *   accessKeyId: process.env.STORAGE_KEY!,
+ *   secretAccessKey: process.env.STORAGE_SECRET!,
+ *   bucket: 'my-bucket',
+ *   endpoint: 'https://<your-s3-compatible-endpoint>',
  * });
  * ```
  */
