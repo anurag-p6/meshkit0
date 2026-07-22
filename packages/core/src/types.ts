@@ -39,6 +39,15 @@ export interface MeshkitConfig {
   headers?: Record<string, string>;
 }
 
+export interface StoredObject {
+  /** Content-addressed key (CID or custom key) identifying the object. */
+  cid: string;
+  /** Size of the object in bytes. */
+  size: number;
+  /** ISO 8601 timestamp of when the object was stored. */
+  uploadedAt: string;
+}
+
 export interface MeshkitClient {
   /** Upload raw bytes to the connected IPFS node. Returns the CID string. */
   upload(data: Uint8Array): Promise<string>;
@@ -83,6 +92,13 @@ export interface MeshkitClient {
 
   /** List all pinned CIDs on the connected node. */
   listPins(): Promise<string[]>;
+
+  /**
+   * List all stored objects with metadata.
+   * Supported on S3-compatible backends (fil.one, Lighthouse, etc.).
+   * Throws MeshkitError on Kubo — use listPins() instead.
+   */
+  list(): Promise<StoredObject[]>;
 
   /** Confirm the node's RPC API is reachable. Throws if it is not. */
   healthCheck(): Promise<void>;
@@ -141,6 +157,12 @@ export interface Meshkit {
 
   /** List all pinned CIDs on the primary node. */
   listPins(): Promise<string[]>;
+
+  /**
+   * List all stored objects with metadata.
+   * Throws MeshkitError on Kubo — use listPins() instead.
+   */
+  list(): Promise<StoredObject[]>;
 
   /** Nodes that passed the health check at init, in priority order. */
   readonly activeNodes: readonly string[];

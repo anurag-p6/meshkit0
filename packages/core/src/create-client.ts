@@ -9,7 +9,8 @@ import type {
   IpnsPublishOptions,
   IpnsResolveOptions,
 } from './ipns/types.js';
-import type { MeshkitClient, MeshkitConfig } from './types.js';
+import type { MeshkitClient, MeshkitConfig, StoredObject } from './types.js';
+import { MeshkitError } from './types.js';
 
 function concatChunks(chunks: Uint8Array[], totalLength: number): Uint8Array {
   const result = new Uint8Array(totalLength);
@@ -106,6 +107,10 @@ export function createMeshkitClient(config: MeshkitConfig): MeshkitClient {
         cids.add(cid.toString());
       }
       return [...cids];
+    },
+
+    list() {
+      throw new MeshkitError('list() is not supported on Kubo — use listPins() instead');
     },
 
     async healthCheck(): Promise<void> {

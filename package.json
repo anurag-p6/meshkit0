@@ -1,6 +1,6 @@
 {
   "name": "@ipfs-meshkit/meshkit",
-  "version": "1.0.1",
+  "version": "1.2.0",
   "description": "Node.js SDK for Kubo/IPFS — upload, pin, IPNS, local daemon, and multi-node failover.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -8,6 +8,16 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "browser": {
+        "import": {
+          "types": "./dist/index.browser.d.ts",
+          "default": "./dist/index.browser.js"
+        },
+        "require": {
+          "types": "./dist/index.browser.d.cts",
+          "default": "./dist/index.browser.cjs"
+        }
+      },
       "import": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
@@ -31,6 +41,8 @@
   "scripts": {
     "build": "tsup",
     "build:mcp": "npm run build && npm run build -w @ipfs-meshkit/mcp",
+    "publish:meshkit": "npm run build && npm publish",
+    "publish:mcp": "npm run build:mcp && npm publish -w @ipfs-meshkit/mcp",
     "clean": "rm -rf dist && npm run clean --workspaces --if-present && find packages -name 'tsconfig.tsbuildinfo' -delete 2>/dev/null || true",
     "prepublishOnly": "npm run build",
     "test": "npm run test:unit",
@@ -77,13 +89,15 @@
     "access": "public"
   },
   "dependencies": {
-    "kubo-rpc-client": "^7.1.0"
+    "aws4fetch": "^1.0.20",
+    "kubo-rpc-client": "^7.1.0",
+    "multiformats": "^14.0.0"
   },
   "devDependencies": {
     "@types/node": "^25.9.3",
     "@vitest/coverage-v8": "^3.2.4",
-    "typescript": "^6.0.3",
     "tsup": "^8.5.0",
+    "typescript": "^6.0.3",
     "vitest": "^3.2.4"
   }
 }

@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(///wsl.localhost/Ubuntu/home/anurag/IPFS-meshkit/packages/core/**)",
+      "Read(///wsl.localhost/Ubuntu/home/anurag/IPFS-meshkit/packages/meshkit/**)",
+      "Read(///wsl.localhost/Ubuntu/home/anurag/IPFS-meshkit/packages/node/**)",
+      "Read(///wsl.localhost/Ubuntu/home/anurag/IPFS-meshkit/packages/mcp/**)",
+      "Read(///wsl.localhost/Ubuntu/home/anurag/IPFS-meshkit/packages/mcp/src/**)",
+      "Read(///wsl.localhost/Ubuntu/home/anurag/IPFS-meshkit/packages/capacitor/**)",
+      "Read(///wsl.localhost/Ubuntu/home/anurag/IPFS-meshkit/packages/react-native/**)",
+      "Skill(fewer-permission-prompts)",
+      "Bash(awk '{print $2}')",
+      "Bash(xargs '-I{}' sh -c ' *)",
+      "WebFetch(domain:docs.filecoin.io)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:filecoin.one)",
+      "WebFetch(domain:web.archive.org)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.synapse.storage)",
+      "WebFetch(domain:docs.filecoin.cloud)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:synapse.filecoin.services)",
+      "WebFetch(domain:www.google.com)",
+      "WebFetch(domain:lanzafame.github.io)",
+      "WebFetch(domain:app.fil.one)",
+      "WebFetch(domain:docs.fil.one)"
+    ]
+  }
+}
