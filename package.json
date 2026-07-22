@@ -1,6 +1,6 @@
 {
   "name": "@ipfs-meshkit/meshkit",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Node.js SDK for Kubo/IPFS — upload, pin, IPNS, local daemon, and multi-node failover.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -8,6 +8,16 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "browser": {
+        "import": {
+          "types": "./dist/index.browser.d.ts",
+          "default": "./dist/index.browser.js"
+        },
+        "require": {
+          "types": "./dist/index.browser.d.cts",
+          "default": "./dist/index.browser.cjs"
+        }
+      },
       "import": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
@@ -80,7 +90,8 @@
   },
   "dependencies": {
     "aws4fetch": "^1.0.20",
-    "kubo-rpc-client": "^7.1.0"
+    "kubo-rpc-client": "^7.1.0",
+    "multiformats": "^14.0.0"
   },
   "devDependencies": {
     "@types/node": "^25.9.3",

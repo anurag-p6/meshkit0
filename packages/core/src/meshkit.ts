@@ -11,6 +11,7 @@ import type {
   Meshkit as MeshkitFacade,
   MeshkitClient,
   MeshkitInitOptions,
+  StoredObject,
 } from './types.js';
 
 export class Meshkit implements MeshkitFacade {
@@ -91,5 +92,9 @@ export class Meshkit implements MeshkitFacade {
 
   listPins() {
     return withPrimary(this.clients, (client) => client.listPins());
+  }
+
+  list(): Promise<StoredObject[]> {
+    throw new MeshkitError('list() is not supported on Kubo — use listPins() instead');
   }
 }

@@ -1,3 +1,5 @@
+// Browser / Capacitor / React Native entry — omits @ipfs-meshkit/node
+// (child_process, path) and the Node.js-only init / shutdown helpers.
 export type {
   MeshkitClient,
   MeshkitConfig,
@@ -23,26 +25,3 @@ export {
   toIpnsPath,
 } from '@ipfs-meshkit/core';
 export type { S3StorageConfig, FilOneConfig } from '@ipfs-meshkit/core';
-
-export type {
-  IPFSNodeHandle,
-  StartIPFSNodeOptions,
-} from '@ipfs-meshkit/node';
-export {
-  DEFAULT_REPO,
-  MeshkitNodeError,
-  listPins,
-  resolveRepoPath,
-  startIPFSNode,
-  stopIPFSNode,
-} from '@ipfs-meshkit/node';
-
-export type {
-  LocalNodeOption,
-  MeshkitBootstrapOptions,
-  MeshkitBootstrapResult,
-} from './init.js';
-export { init } from './init.js';
-
-export type { GracefulShutdownOptions } from './shutdown.js';
-export { setupGracefulShutdown } from './shutdown.js';

@@ -3,7 +3,20 @@ import { CID } from 'multiformats/cid';
 import { sha256 } from 'multiformats/hashes/sha2';
 import * as raw from 'multiformats/codecs/raw';
 import { MeshkitError } from './types.js';
-import type { MeshkitClient } from './types.js';
+import type { MeshkitClient, StoredObject } from './types.js';
+
+export interface S3StorageConfig {
+  accessKeyId: string;
+  secretAccessKey: string;
+  bucket: string;
+  /**
+   * Any S3-compatible endpoint.
+   * Examples:
+   *   fil.one:    https://us-east-1.s3.fil.one
+   *   Lighthouse: https://gateway.lighthouse.storage
+   */
+  endpoint: string;
+}
 
 /**
  * Configuration for a fil.one S3-compatible storage bucket.
@@ -28,53 +41,47 @@ export interface FilOneConfig {
   endpoint?: string;
 }
 
-const DEFAULT_ENDPOINT = 'https://eu-west-1.s3.fil.one';
-
-/**
- * Compute a CIDv1 (raw codec, sha2-256) from raw bytes.
- *
- * The same bytes always produce the same CID — this is the content-address
- * used as the S3 object key, preserving the content-addressed semantics of
- * the MeshkitClient interface without requiring a running IPFS node.
- */
 async function computeCid(data: Uint8Array): Promise<string> {
   const hash = await sha256.digest(data);
   return CID.create(1, raw.code, hash).toString();
 }
 
-const NOT_SUPPORTED = (op: string) => async (): Promise<never> => {
-  throw new MeshkitError(
-    `${op} is not supported by the fil.one client — fil.one is an object store and has no IPFS keystore or pinning layer`,
+const NOT_SUPPORTED = (op: string) => (): Promise<never> =>
+  Promise.reject(
+    new MeshkitError(
+      `${op} is not supported on S3-compatible backends — fil.one is an object store with no IPFS keystore or pinning layer`,
+    ),
   );
-};
 
 /**
- * Create a MeshkitClient backed by fil.one (Filecoin-native S3-compatible
- * object storage) instead of a Kubo node.
+ * Create a MeshkitClient backed by any S3-compatible object store
+ * (fil.one, Lighthouse, Filebase, 4EVERLAND, etc.) instead of a Kubo node.
  *
  * Files are stored at <endpoint>/<bucket>/<cidv1> where the CID is computed
  * locally from the raw bytes — no IPFS daemon required.
  *
- * Operations not supported by an object store (IPNS publish/resolve, key
- * management, pin management) throw a MeshkitError explaining the limitation.
- *
- * @example
+ * @example fil.one
  * ```ts
- * import { createFilOneClient, Meshkit } from '@ipfs-meshkit/core';
- *
- * const client = createFilOneClient({
+ * const client = createS3Client({
  *   accessKeyId: process.env.FIL_ACCESS_KEY!,
  *   secretAccessKey: process.env.FIL_SECRET_KEY!,
  *   bucket: 'my-invoices',
+ *   endpoint: 'https://eu-west-1.s3.fil.one',
  * });
+ * ```
  *
- * // Use directly as a single-node client
- * const cid = await client.upload(data);
- * const bytes = await client.retrieve(cid);
+ * @example Lighthouse
+ * ```ts
+ * const client = createS3Client({
+ *   accessKeyId: process.env.LH_ACCESS_KEY!,
+ *   secretAccessKey: process.env.LH_SECRET_KEY!,
+ *   bucket: 'my-invoices',
+ *   endpoint: 'https://gateway.lighthouse.storage',
+ * });
  * ```
  */
-export function createFilOneClient(config: FilOneConfig): MeshkitClient {
-  const endpoint = (config.endpoint ?? DEFAULT_ENDPOINT).replace(/\/$/, '');
+export function createS3Client(config: S3StorageConfig): MeshkitClient {
+  const endpoint = config.endpoint.replace(/\/$/, '');
   const { bucket } = config;
 
   const aws = new AwsClient({
@@ -87,68 +94,144 @@ export function createFilOneClient(config: FilOneConfig): MeshkitClient {
     return `${endpoint}/${bucket}/${key}`;
   }
 
-  async function upload(data: Uint8Array): Promise<string> {
-    const cid = await computeCid(data);
-    const url = objectUrl(cid);
+  async function listAllObjects(): Promise<{ key: string; size: number; lastModified: Date | undefined }[]> {
+    const results: { key: string; size: number; lastModified: Date | undefined }[] = [];
+    let continuationToken: string | undefined;
 
-    const res = await aws.fetch(url, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/octet-stream' },
-      body: data.buffer as BodyInit,
-    });
+    do {
+      const url = new URL(`${endpoint}/${bucket}`);
+      url.searchParams.set('list-type', '2');
+      if (continuationToken) {
+        url.searchParams.set('continuation-token', continuationToken);
+      }
 
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      throw new MeshkitError(
-        `fil.one upload failed [${res.status}]: ${body || res.statusText}`,
-      );
-    }
+      const res = await aws.fetch(url.toString(), { method: 'GET' });
 
-    return cid;
-  }
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new MeshkitError(
+          `S3 list failed [${res.status}]: ${body || res.statusText}`,
+        );
+      }
 
-  async function retrieve(cid: string): Promise<Uint8Array> {
-    const res = await aws.fetch(objectUrl(cid), { method: 'GET' });
+      const xml = await res.text();
 
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      throw new MeshkitError(
-        `fil.one retrieve failed [${res.status}] for CID ${cid}: ${body || res.statusText}`,
-      );
-    }
+      // Parse <Contents> entries from S3 ListObjectsV2 XML response
+      const contentsMatches = xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g);
+      for (const match of contentsMatches) {
+        const block = match[1];
+        const key = block.match(/<Key>(.*?)<\/Key>/)?.[1];
+        const sizeStr = block.match(/<Size>(.*?)<\/Size>/)?.[1];
+        const lastModStr = block.match(/<LastModified>(.*?)<\/LastModified>/)?.[1];
 
-    const buffer = await res.arrayBuffer();
-    return new Uint8Array(buffer);
-  }
+        if (!key) continue;
+        // Skip non-CID keys (anything containing a dot, e.g. manifest.json)
+        if (key.includes('.')) continue;
 
-  async function healthCheck(): Promise<void> {
-    // HEAD on the bucket root — cheapest possible authenticated request.
-    // fil.one returns 200 for a valid bucket, 403/404 for bad credentials/missing bucket.
-    const res = await aws.fetch(`${endpoint}/${bucket}`, { method: 'HEAD' });
+        results.push({
+          key,
+          size: sizeStr ? parseInt(sizeStr, 10) : 0,
+          lastModified: lastModStr ? new Date(lastModStr) : undefined,
+        });
+      }
 
-    if (!res.ok && res.status !== 404) {
-      throw new MeshkitError(
-        `fil.one health check failed [${res.status}]: verify accessKeyId, secretAccessKey, and bucket name`,
-      );
-    }
+      const isTruncated = /<IsTruncated>true<\/IsTruncated>/.test(xml);
+      const nextToken = xml.match(/<NextContinuationToken>(.*?)<\/NextContinuationToken>/)?.[1];
+      continuationToken = isTruncated ? nextToken : undefined;
+    } while (continuationToken);
+
+    return results;
   }
 
   return {
-    upload,
-    retrieve,
+    async upload(data: Uint8Array): Promise<string> {
+      const cid = await computeCid(data);
+      const res = await aws.fetch(objectUrl(cid), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: data.buffer as BodyInit,
+      });
 
-    // fil.one is an object store — there is no pin layer.
-    // Silently succeed so callers that unconditionally call pin() after upload
-    // do not need special-casing.
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new MeshkitError(
+          `S3 upload failed [${res.status}]: ${body || res.statusText}`,
+        );
+      }
+
+      return cid;
+    },
+
+    async retrieve(cid: string): Promise<Uint8Array> {
+      const res = await aws.fetch(objectUrl(cid), { method: 'GET' });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new MeshkitError(
+          `S3 retrieve failed [${res.status}] for CID ${cid}: ${body || res.statusText}`,
+        );
+      }
+
+      return new Uint8Array(await res.arrayBuffer());
+    },
+
     async pin(_cid: string): Promise<void> {},
+
+    async listPins(): Promise<string[]> {
+      const objects = await listAllObjects();
+      return objects.map((o) => o.key);
+    },
+
+    async list(): Promise<StoredObject[]> {
+      const objects = await listAllObjects();
+      return objects.map((o) => ({
+        cid: o.key,
+        size: o.size,
+        uploadedAt: o.lastModified?.toISOString() ?? '',
+      }));
+    },
 
     publishName: NOT_SUPPORTED('publishName'),
     resolveName: NOT_SUPPORTED('resolveName'),
     resolveAndRetrieve: NOT_SUPPORTED('resolveAndRetrieve'),
     generateKey: NOT_SUPPORTED('generateKey'),
     listKeys: NOT_SUPPORTED('listKeys'),
-    listPins: NOT_SUPPORTED('listPins'),
 
-    healthCheck,
+    async healthCheck(): Promise<void> {
+      const res = await aws.fetch(`${endpoint}/${bucket}`, { method: 'HEAD' });
+      if (!res.ok && res.status !== 404) {
+        throw new MeshkitError(
+          `S3 health check failed [${res.status}]: verify accessKeyId, secretAccessKey, and bucket name`,
+        );
+      }
+    },
   };
+}
+
+/**
+ * Create a MeshkitClient backed by fil.one (Filecoin-native S3-compatible
+ * object storage). This is a thin preset over `createS3Client` — the only
+ * difference is that `endpoint` defaults to `https://eu-west-1.s3.fil.one`.
+ *
+ * @example
+ * ```ts
+ * import { createFilOneClient } from '@ipfs-meshkit/meshkit';
+ *
+ * const client = createFilOneClient({
+ *   accessKeyId: process.env.FIL_ACCESS_KEY!,
+ *   secretAccessKey: process.env.FIL_SECRET_KEY!,
+ *   bucket: 'my-invoices',
+ * });
+ *
+ * const cid = await client.upload(data);
+ * const bytes = await client.retrieve(cid);
+ * ```
+ */
+export function createFilOneClient(config: FilOneConfig): MeshkitClient {
+  return createS3Client({
+    accessKeyId: config.accessKeyId,
+    secretAccessKey: config.secretAccessKey,
+    bucket: config.bucket,
+    endpoint: config.endpoint ?? 'https://eu-west-1.s3.fil.one',
+  });
 }
