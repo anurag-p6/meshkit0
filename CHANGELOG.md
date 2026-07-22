@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.1.0 — 2026-07-22
+
+### Added
+
+- **`createFilOneClient(config)`** — new `MeshkitClient` backed by [fil.one](https://fil.one) (Filecoin-native S3-compatible object storage) instead of a Kubo daemon
+  - CID is computed locally (CIDv1, raw codec, sha2-256) — no IPFS node required
+  - Objects stored at `<endpoint>/<bucket>/<cid>` via AWS Signature V4 (`aws4fetch`)
+  - `upload()` issues a signed PUT; `retrieve()` issues a signed GET
+  - `pin()` is a silent no-op (object store has no pin layer, so callers don't need special-casing)
+  - `healthCheck()` issues a signed HEAD on the bucket — validates credentials and bucket existence
+  - IPNS operations (`publishName`, `resolveName`, `resolveAndRetrieve`, `generateKey`, `listKeys`, `listPins`) throw `MeshkitError` with a clear message explaining the limitation
+- **`FilOneConfig`** interface exported from the root package — `accessKeyId`, `secretAccessKey`, `bucket`, optional `endpoint` (default: `https://eu-west-1.s3.fil.one`)
+- `multiformats` added as a dependency for local CID computation
+
+### Notes
+
+- `createFilOneClient` is a drop-in `MeshkitClient` — works anywhere `createMeshkitClient` works, including Ionic/Capacitor, React Native, and browser environments (no daemon spawn required)
+- Do not use `init()` or `startIPFSNode()` with fil.one — those are Node.js daemon paths; use `createFilOneClient` directly
+
 ## 1.0.2 — 2026-07-11
 
 ### Added

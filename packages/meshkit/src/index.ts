@@ -13,12 +13,14 @@ export {
   MeshkitError,
   Meshkit,
   createMeshkitClient,
+  createFilOneClient,
   IPNS_TTL_DEFAULT,
   IPNS_TTL_FAST,
   extractCidFromPath,
   toIpfsPath,
   toIpnsPath,
 } from '@ipfs-meshkit/core';
+export type { FilOneConfig } from '@ipfs-meshkit/core';
 
 export type {
   IPFSNodeHandle,

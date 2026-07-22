@@ -31,5 +31,5 @@ export default defineConfig({
   },
   // Bundle workspace packages into one publishable artifact.
   noExternal: [/^@ipfs-meshkit\//],
-  external: ['kubo-rpc-client'],
+  external: ['kubo-rpc-client', 'aws4fetch', 'multiformats'],
 });
